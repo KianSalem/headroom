@@ -1,5 +1,7 @@
 # headroom
 
+[![ci](https://github.com/KianSalem/headroom/actions/workflows/ci.yml/badge.svg)](https://github.com/KianSalem/headroom/actions/workflows/ci.yml)
+
 A closed-loop agent system that performs mastering-engineer work on real audio and is graded
 by measurement rather than by an LLM's opinion.
 
@@ -19,6 +21,8 @@ headroom master mix.wav out.wav --reference ref.wav --target spotify
 
 ## What it does
 
+Deliver to a platform:
+
 ```
 $ headroom master mix.wav mastered.wav --target spotify
 target 'spotify' (loudness preset: Spotify normalization): 2 features across ['loudness']
@@ -33,8 +37,42 @@ distance 1.1937 -> 0.0000  recovery +1.000  converged
 source -> gain[gain_db=-1.34] -> render
 ```
 
-That run needed no API key. `--system agent` swaps the model-backed specialists in behind the
-same interface.
+Or say what you want in words. The model's only job is to turn the sentence into
+constraints; a deterministic controller and a deterministic metric do the rest:
+
+```
+$ headroom master mix.wav out.wav --brief "More space and width, but keep the low end tight and mono."
+
+brief: 'More space and width, but keep the low end tight and mono.'
+  correlation_z       -2.0 tol ( -0.20 fisher-z)  -- more space
+  width_5             +2.0 tol ( +2.00 dB)        -- more width
+  width_6             +2.0 tol ( +2.00 dB)        -- more width
+  width_7             +2.0 tol ( +2.00 dB)        -- more width
+  width_8             +2.0 tol ( +2.00 dB)        -- more width
+  hold at current value: width_0, width_1, width_2, width_3, width_4,
+                         mono_compat_db, band_clr_0, band_clr_1, band_clr_2, band_clr_3
+  translation cost 3326 in / 399 out
+
+target 'brief:...': 15 features across ['spectral', 'stereo']
+
+*  0  0.4724   3 out  width.band8 +0.202   role=stereo | 5 edits | targeting width_6 -2.00 tol
+*  1  0.3114  10 out  width.global -0.166  role=stereo | targeting mono_compat_db -2.96 tol
+   ...
+distance 0.5330 -> 0.3114  recovery +0.416  stopped: no_improvement
+
+source -> stereo_width[1.20 band=5] -> stereo_width[1.20 band=6] -> stereo_width[1.20 band=7]
+       -> stereo_width[1.20 band=8] -> stereo_width[0.89] -> render
+```
+
+The half of that brief which says *don't* is the interesting half, and it becomes ten held
+dimensions rather than a hope. Note also that it does not converge: holding mono
+compatibility genuinely fights widening the top, the metric encodes that trade-off, and the
+system reports a compromise at +0.416 instead of pretending. The translation is one API call
+and is replayed from a committed cassette, so this exact run costs nothing to repeat.
+
+Neither example needs an API key beyond that: `--system agent-scaffold` is the default and
+makes no model calls at all. `--system agent` swaps the model-backed specialists in behind
+the same interface.
 
 ## The architecture
 
@@ -297,9 +335,13 @@ parts the evaluation actually makes claims about — are held to the same rule a
 measurement core, which is why they are covered on every fork's pull request with the key
 explicitly empty.
 
-`mypy --strict` clean. Bounds live in one set of annotations and are read from there both by
-the validators and by the JSON schemas the model sees, so the advertised range and the
-enforced range cannot drift apart.
+`mypy --strict` clean across 64 files, 288 tests, and `ruff` clean on the whole tree. Bounds
+live in one set of annotations and are read from there both by the validators and by the JSON
+schemas the model sees, so the advertised range and the enforced range cannot drift apart.
+
+CI runs the whole suite with `ANTHROPIC_API_KEY` explicitly empty and the cassettes in replay
+mode, on Linux and macOS, and then runs the demo above on a clean checkout — so "it works on
+a fresh clone with no credential" is a job that fails rather than a claim in a readme.
 
 ## Commands
 

@@ -473,8 +473,21 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from headroom.agent.cassette import CassetteMissError
+    from headroom.agent.client import ModelError
+
     args = build_parser().parse_args(argv)
-    result: int = args.func(args)
+    try:
+        result: int = args.func(args)
+    except CassetteMissError as exc:
+        # Replay mode is the default in CI and the recommended way to reproduce
+        # a published number, so a miss is a normal outcome of asking for
+        # something nobody recorded -- not a bug worth a stack trace.
+        sys.stderr.write(f"no recording for this request.\n{exc.args[0]}\n")
+        return 2
+    except ModelError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
     return result
 
 
