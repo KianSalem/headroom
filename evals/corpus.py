@@ -20,8 +20,10 @@ Hashing is stable: adding a track never moves an existing one.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import os
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -178,10 +180,31 @@ def scan_directory(
 
 
 def save_manifest(manifest: CorpusManifest, path: str | Path) -> None:
+    """Write the manifest with track paths stored *relative to it*.
+
+    A manifest is committed alongside results so a reader can check that the
+    reported test numbers came from tracks never used for tuning. Absolute
+    paths would make that artefact carry one machine's directory layout and be
+    useless anywhere else, so paths are relativized on the way out and resolved
+    against the manifest's own location on the way back in. A corpus somewhere
+    the relative path cannot reach -- a different drive -- stays absolute.
+    """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(json.loads(manifest.model_dump_json()), indent=2) + "\n")
+    payload = json.loads(manifest.model_dump_json())
+    base = p.parent.resolve()
+    for track in payload["tracks"]:
+        # A corpus the relative path cannot reach -- a different Windows drive
+        # -- keeps its absolute path rather than failing the save.
+        with contextlib.suppress(ValueError):
+            track["path"] = os.path.relpath(Path(track["path"]).resolve(), base)
+    p.write_text(json.dumps(payload, indent=2) + "\n")
 
 
 def load_manifest(path: str | Path) -> CorpusManifest:
-    return CorpusManifest.model_validate_json(Path(path).read_text())
+    p = Path(path)
+    payload = json.loads(p.read_text())
+    base = p.parent.resolve()
+    for track in payload["tracks"]:
+        track["path"] = str(Path(base / track["path"]).resolve())
+    return CorpusManifest.model_validate(payload)

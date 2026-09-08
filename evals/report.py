@@ -426,11 +426,21 @@ def render_spend(traces: Sequence[RunTrace]) -> str:
             f"${sum(t.total_cost_usd for t in rows):.4f} |"
         )
     replayed = sum(1 for t in billed if t.replayed_from_cassette)
+    provenance = (
+        f"All {len(billed)} runs were replayed from committed cassettes, so this "
+        "table cost nothing to produce; the figure is what it cost to record."
+        if replayed == len(billed)
+        else (
+            f"These {len(billed)} runs were recorded live, so this is what they "
+            "actually cost. Every call is in a committed cassette, so re-running "
+            "them costs nothing."
+        )
+        if replayed == 0
+        else f"{replayed} of {len(billed)} runs were replayed from a cassette."
+    )
     lines.append("")
     lines.append(
         f"Total **${sum(t.total_cost_usd for t in billed):.4f}**, from usage the "
-        f"API returned rather than an estimate. {replayed} of {len(billed)} runs "
-        "replayed from a committed cassette, so reproducing this table costs "
-        "nothing; the figure is what it cost to record."
+        f"API returned rather than an estimate. {provenance}"
     )
     return "\n".join(lines) + "\n"

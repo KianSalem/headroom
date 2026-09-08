@@ -214,8 +214,11 @@ def _cmd_report(args: argparse.Namespace) -> int:
             # One showcase per degradation kind, so a listener hears each
             # failure mode once rather than the same track nine times.
             seen: set[str] = set()
+            wanted = set(args.showcase) if args.showcase else None
             for trace in traces:
                 if trace.degradation_kind in seen or trace.track_id not in tracks:
+                    continue
+                if wanted is not None and trace.degradation_kind not in wanted:
                     continue
                 seen.add(trace.degradation_kind)
                 showcases.append(
@@ -232,10 +235,90 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_brief_eval(args: argparse.Namespace) -> int:
+    """Score brief translation on one track. Deterministic, no LLM judge."""
+    from evals import briefs
+    from evals.runner import clip
+
+    from headroom.agent.client import BriefTranslator, ModelClient, ModelConfig
+    from headroom.agent.factory import build_system, cassette_for
+    from headroom.control.critic import CriticConfig
+    from headroom.dsp.backends.pedalboard import clear_cache
+
+    source = clip(load(args.input), args.clip_seconds)
+    model_config = ModelConfig(model=args.model, effort=args.effort)
+    translate = BriefTranslator(
+        client=ModelClient(config=model_config, cassette=cassette_for(model_config.model))
+    )
+    critic = CriticConfig(render_budget=args.budget)
+    by_system: dict[str, list[briefs.BriefResult]] = {}
+    for system in args.system:
+        sys.stdout.write(f"\ncontroller: {system}\n")
+        results: list[briefs.BriefResult] = []
+        for case in briefs.CASES:
+            # Per-case caches: across cases they would only hold audio nothing
+            # revisits, and a fresh supervisor keeps working memory per brief.
+            clear_cache()
+            agent = build_system(system, model=args.model, effort=args.effort)
+            result = briefs.run_case(
+                case,
+                source,
+                translate,
+                agent.propose,
+                system=system,
+                config=critic,
+                track_id=Path(args.input).stem,
+            )
+            results.append(result)
+            sys.stdout.write(
+                f"{'PASS' if result.passed else 'fail'} "
+                f"T{result.translation_score:.0%} E{result.execution_score:.0%} "
+                f"C{result.collateral_score:.0%}  {case.label}\n"
+            )
+            for name, detail in result.detail.items():
+                sys.stdout.write(f"       {name}: {detail}\n")
+            if result.error:
+                sys.stdout.write(f"       {result.error}\n")
+        by_system[system] = results
+
+    repaired = sum(1 for rs in by_system.values() for r in rs if r.target.repaired_json) // len(
+        by_system
+    )
+    sections = [
+        f"## Briefs on `{Path(args.input).name}`",
+        "",
+        f"Translation model `{args.model}`. {len(briefs.CASES)} briefs, "
+        f"{translate.client.n_calls // max(len(by_system), 1)} translation calls costing "
+        f"${translate.client.cost / max(len(by_system), 1):.4f} to record and "
+        "nothing to replay" + (f"; {repaired} needed a JSON repair." if repaired else "."),
+        "",
+    ]
+    if len(by_system) > 1:
+        sections += [briefs.render_comparison(dict(by_system)), ""]
+    for system, results in by_system.items():
+        sections += [
+            f"### Controller `{system}`",
+            "",
+            briefs.render_markdown(results, heading=""),
+            "",
+        ]
+    body = "\n".join(sections)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(body)
+    sys.stdout.write("\n" + body + f"wrote {out}\n")
+    return 0
+
+
 def _cmd_corpus(args: argparse.Namespace) -> int:
     from evals.corpus import save_manifest, scan_directory
 
-    manifest = scan_directory(args.root, test_fraction=args.test_fraction)
+    manifest = scan_directory(
+        args.root,
+        corpus_name=args.name,
+        test_fraction=args.test_fraction,
+        license_note=args.license,
+    )
     save_manifest(manifest, args.out)
     sys.stdout.write(f"{manifest.summary()}\nwrote {args.out}\n")
     return 0
@@ -345,12 +428,45 @@ def build_parser() -> argparse.ArgumentParser:
     p_report.add_argument("--html", default="", help="also build the listening report here")
     p_report.add_argument("--manifest", default="results/corpus_manifest.json")
     p_report.add_argument("--clip-seconds", type=float, default=20.0)
+    p_report.add_argument(
+        "--showcase",
+        nargs="*",
+        default=["spectral_tilt", "over_compress", "stereo_collapse"],
+        help="degradations to render for listening; empty means every kind, which "
+        "is a much heavier page",
+    )
     p_report.set_defaults(func=_cmd_report)
+
+    p_briefs = sub.add_parser(
+        "brief-eval", help="score natural-language brief translation, no LLM judge"
+    )
+    p_briefs.add_argument("input", help="a track to apply every brief to")
+    p_briefs.add_argument("--out", default="results/BRIEFS.md")
+    p_briefs.add_argument(
+        "--system",
+        nargs="+",
+        default=["agent-scaffold", "agent"],
+        choices=("agent-scaffold", "agent"),
+        help="controllers to run the same translations through; two makes it a "
+        "controlled comparison of who should close the loop",
+    )
+    p_briefs.add_argument("--model", default=DEFAULT_MODEL)
+    p_briefs.add_argument("--effort", default="")
+    p_briefs.add_argument("--budget", type=int, default=8)
+    p_briefs.add_argument("--clip-seconds", type=float, default=20.0)
+    p_briefs.set_defaults(func=_cmd_brief_eval)
 
     p_corpus = sub.add_parser("corpus", help="build a train/test manifest from a directory")
     p_corpus.add_argument("root")
     p_corpus.add_argument("--out", default="results/corpus_manifest.json")
     p_corpus.add_argument("--test-fraction", type=float, default=0.35)
+    p_corpus.add_argument(
+        "--name",
+        default="MUSDB18-HQ",
+        help="corpus name recorded in the manifest; a committed manifest that "
+        "names the wrong corpus is worse than no manifest",
+    )
+    p_corpus.add_argument("--license", default="mixed CC BY-NC-SA, academic use")
     p_corpus.set_defaults(func=_cmd_corpus)
 
     return parser

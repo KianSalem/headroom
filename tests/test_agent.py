@@ -1037,7 +1037,16 @@ def test_the_report_states_measured_spend_and_replay_status() -> None:
     text = report.render_spend([trace])
     assert "claude-haiku-4-5" in text
     assert "$0.0031" in text
-    assert "1 of 1 runs" in text
+    # Fully replayed: the figure is what it cost to record, not to reproduce.
+    assert "cost nothing to produce" in text
+
+    recorded = trace.model_copy(update={"replayed_from_cassette": False})
+    live = report.render_spend([recorded])
+    assert "what they actually cost" in live
+    assert "$0.0031" in live
+
+    mixed = report.render_spend([trace, recorded])
+    assert "1 of 2 runs were replayed" in mixed
 
 
 def test_the_specialist_table_is_omitted_when_no_agent_ran() -> None:
@@ -1414,3 +1423,115 @@ def test_a_dimension_hold_pins_only_that_dimension(
     assert targets["width_7"] > scored["width_7"]
     # ...and the rest of the stereo family is left free.
     assert "width_4" not in targets
+
+
+def test_a_leading_plus_on_a_number_is_repaired() -> None:
+    """JSON forbids ``+2.0``, and a model asked for signed offsets writes them
+    that way. Combined with the string-instead-of-array quirk this discarded a
+    translation that was correct in every dimension and sign."""
+    spec = brief.parse(
+        "punchier",
+        {
+            "adjustments": (
+                '[{"dimension": "crest_factor_db", "offset_tol": +2.0, "reason": "punch"},'
+                ' {"dimension": "attack_log2_ms", "offset_tol": -2.0, "reason": "faster"}]'
+            ),
+            "rationale": "",
+        },
+    )
+    assert spec.repaired_json is True
+    assert spec.named() == {"crest_factor_db": 2.0, "attack_log2_ms": -2.0}
+
+
+def test_the_repair_does_not_touch_a_plus_inside_a_string() -> None:
+    spec = brief.parse(
+        "louder",
+        {
+            "adjustments": (
+                '[{"dimension": "lufs_integrated", "offset_tol": 3.0, "reason": "+3 dB please"}]'
+            ),
+            "rationale": "",
+        },
+    )
+    assert spec.adjustments[0].reason == "+3 dB please"
+
+
+# --- the committed cassettes --------------------------------------------------
+
+CASSETTE_ROOT = Path(__file__).resolve().parent.parent / "cassettes"
+
+
+def _committed_cassettes() -> list[Path]:
+    return sorted(CASSETTE_ROOT.rglob("*.json")) if CASSETTE_ROOT.exists() else []
+
+
+@pytest.mark.skipif(not _committed_cassettes(), reason="no cassettes committed yet")
+def test_no_committed_cassette_carries_a_credential() -> None:
+    """This repository is public and these files are the API traffic verbatim.
+
+    Asserted over the whole directory rather than trusting the redaction at the
+    one place that writes them, because the cost of being wrong is a leaked key
+    in immutable git history.
+    """
+    allowed = {"model", "max_tokens", "system", "tools", "messages", "tool_choice"}
+    forbidden = ("sk-ant-", "api_key", "authorization", "x-api-key", "bearer ")
+    for file in _committed_cassettes():
+        raw = file.read_text()
+        lowered = raw.lower()
+        for needle in forbidden:
+            assert needle not in lowered, f"{file.name} contains {needle!r}"
+        payload = json.loads(raw)
+        assert set(payload) == {"key", "request", "response"}, file.name
+        assert set(payload["request"]) <= allowed, f"{file.name}: {set(payload['request'])}"
+
+
+@pytest.mark.skipif(not _committed_cassettes(), reason="no cassettes committed yet")
+def test_every_committed_cassette_replays() -> None:
+    """A recording whose key does not match its own request is dead weight that
+    would silently fall through to a live call."""
+    for file in _committed_cassettes():
+        payload = json.loads(file.read_text())
+        assert digest(payload["request"]) == payload["key"] == file.stem, file.name
+        cassette = Cassette(path=file.parent, mode=Mode.REPLAY)
+        assert cassette.get(payload["request"]) == payload["response"]
+
+
+@pytest.mark.skipif(not _committed_cassettes(), reason="no cassettes committed yet")
+def test_a_committed_recording_drives_a_specialist_with_no_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The property CI depends on, asserted against the real recordings rather
+    than a fixture written to pass."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+
+    def _explode(self: ModelClient, request: dict[str, Any]) -> dict[str, Any]:
+        raise AssertionError("replay must not reach the API")
+
+    monkeypatch.setattr(ModelClient, "_send", _explode)
+    for file in _committed_cassettes():
+        payload = json.loads(file.read_text())
+        request = payload["request"]
+        tool_names = {t["name"] for t in request.get("tools", [])}
+        if brief.TOOL_NAME in tool_names:
+            continue  # a translation call, exercised by the brief tests
+        role = next(r for r in Role if {s.name for s in tools.tools_for(r)} == tool_names)
+        client = ModelClient(
+            config=ModelConfig(model=request["model"]),
+            cassette=Cassette(path=file.parent, mode=Mode.REPLAY),
+        )
+        response, usage, replayed = client.call(
+            system=request["system"][0]["text"],
+            tools=request["tools"],
+            messages=request["messages"],
+        )
+        assert replayed
+        assert usage.total > 0
+        assert response["content"]
+        # And the recorded tool calls still apply to a chain today, which is
+        # what would break if the tool layer's argument names ever drifted.
+        for use in response["content"]:
+            if use.get("type") != "tool_use":
+                continue
+            outcome = tools.apply_call(Chain(), role, use["name"], use.get("input") or {})
+            assert outcome.ok or outcome.error, use["name"]
+        break

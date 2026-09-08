@@ -25,11 +25,14 @@ numbers a stranger can **reproduce**, not a complete research programme.
 | Record/replay cassettes, measured token cost | **done** |
 | Reference matching and delivery presets end to end | **done** — `headroom master` |
 | HTML report with audio players and the agent's chain | **done** |
+| Natural-language briefs, graded without an LLM judge | **done** |
+| Record/replay reproduction of the agent row at zero cost | **done**, verified |
 
 ## Deferred, with the reason
 
-- **Natural-language brief evaluation.** The most interesting test of the
-  thesis, and the biggest build. v1 measures numeric recovery only.
+- **Brief evaluation at scale.** Eight briefs on one track ship, graded
+  deterministically. A larger brief set across the real corpus is the obvious
+  next run and needs no new code.
 - **Ablation suite and model sweep.** Seven ablations plus a model grid is
   months of runs. v1 reports one honest comparison table.
 - **Blind ABX perceptual check.** Needs the system finished first.
@@ -156,6 +159,43 @@ material: anyone can download the same files and reproduce every number.
 
 Demo audio for the report comes from separately-sourced CC-BY clips committed
 under `audio/demo/`, so hosting them publicly is unambiguous.
+
+## What the results actually showed
+
+Recorded here because the point of the evaluation was to be able to be wrong.
+
+**The architecture beats the heuristic where coupling exists, and the
+difference is not significant overall.** `agent-scaffold` converges on 89% of
+cells against 72% in a median 2 renders against 4, and the gap concentrates on
+the coupled degradations — `spectral_tilt` +0.985 against +0.695,
+`over_compress` +0.981 against +0.833, tying the optimizer bound on both.
+Across all 18 cells the paired recovery difference is +0.000 at p=0.120.
+
+**The model is significantly worse than the heuristic on numeric targets.**
+The identical architecture with Haiku 4.5 in place of arithmetic: 3 wins, 11
+losses, p=0.025, 44% convergence, 28% oscillation, $0.386. The mechanism is in
+the traces — a deterministic controller has its step size *imposed* by the
+critic, which multiplies every correction by the damping factor, while a model
+is only *told* the factor, and only after oscillation is already detected.
+
+**Sonnet 5 is worse and 3.2x the price** on the same cell: +0.764 against
++0.799, 2.6x the output tokens, one specialist held for seven renders.
+
+**The model wins on briefs, which nothing else can do at all.** Translation
+94%, and the same recorded translations executed by the deterministic
+controller beat the model-backed one: execution 75% against 56%, collateral 88%
+against 85%, 4 of 8 briefs fully satisfied against 2, at zero controller cost
+against $0.112. So the design conclusion is a split — the model reads intent,
+arithmetic closes the loop.
+
+**Two of these findings only exist because a baseline bug was fixed.** Before
+the heuristic could decline to retry a failed direction, the architecture won
+at p=0.030; afterwards, p=0.120. The earlier number was an artefact of a
+strawman.
+
+The corpus is synthetic and stationary and the degradations are built from the
+same op vocabulary used to repair them, which is the easiest possible case and
+flatters every deterministic system. n=18 is small.
 
 ## Cost
 

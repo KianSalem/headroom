@@ -1,0 +1,201 @@
+{
+ "key": "78490478c994a660ac73e0850044f3c7",
+ "request": {
+  "max_tokens": 1024,
+  "messages": [
+   {
+    "content": "Brief: Get it up to streaming level without squashing the dynamics.\n\nWhere the audio sits now:\n  attack_log2_ms        +1.322 log2(ms)  (tolerance 0.35)\n  band_clr_0           -17.732 dB        (tolerance 0.75)\n  band_clr_1            +2.268 dB        (tolerance 0.75)\n  band_clr_2            -3.619 dB        (tolerance 0.75)\n  band_clr_3            +3.307 dB        (tolerance 0.75)\n  band_clr_4            +1.252 dB        (tolerance 0.75)\n  band_clr_5            -1.203 dB        (tolerance 0.75)\n  band_clr_6            +1.538 dB        (tolerance 0.75)\n  band_clr_7            +4.701 dB        (tolerance 0.75)\n  band_clr_8            +9.489 dB        (tolerance 0.75)\n  correlation_z         -0.332 fisher-z  (tolerance 0.1)\n  crest_factor_db      +13.831 dB        (tolerance 1)\n  crest_short_p50      +13.628 dB        (tolerance 1)\n  flatness_logit        +0.537 logit     (tolerance 0.15)\n  lra                   +1.898 LU        (tolerance 1)\n  lufs_integrated      -12.598 LUFS      (tolerance 0.5)\n  mono_compat_db        -6.252 dB        (tolerance 0.5)\n  percussive_logit      -2.401 logit     (tolerance 0.2)\n  true_peak_dbtp        -3.432 dBTP      (tolerance 1)\n  width_0               -1.962 dB        (tolerance 1)\n  width_1              -15.739 dB        (tolerance 1)\n  width_2               -1.686 dB        (tolerance 1)\n  width_3              -12.932 dB        (tolerance 1)\n  width_4               -4.949 dB        (tolerance 1)\n  width_5               +7.704 dB        (tolerance 1)\n  width_6               +7.577 dB        (tolerance 1)\n  width_7               +7.688 dB        (tolerance 1)\n  width_8               +7.795 dB        (tolerance 1)\n\nTranslate the brief into offsets against these values.",
+    "role": "user"
+   }
+  ],
+  "model": "claude-haiku-4-5",
+  "system": [
+   {
+    "cache_control": {
+     "ttl": "1h",
+     "type": "ephemeral"
+    },
+    "text": "You translate a mastering brief into measurable targets. You do not process audio and you do not choose processing; a deterministic controller does that, and a deterministic metric grades the result.\n\nYour only output is a set of signed offsets against dimensions that are already measured, expressed in tolerance units relative to the audio's current values. One tolerance is roughly the smallest difference a listener would notice, so +2 is a clear change and +6 is dramatic. An offset below 1.0 does nothing at all.\n\nThe dimensions and what they measure:\n- band_clr_0 through band_clr_8 are the energy in nine octave-ish bands, expressed as a centered log-ratio in dB: each band relative to the mean of all nine. Scale-invariant, so turning the whole mix up does not change them. Band 0 is 20-60 Hz, 4 is 500-1000 Hz, 8 is 8-20 kHz.\n- flatness_logit is spectral flatness on a logit scale. High means noise-like and even, low means tonal and peaky.\n- crest_factor_db is peak minus RMS over the whole file: how much dynamic range is left. Around 12 to 18 dB is a lively master, under 8 dB is heavily limited.\n- crest_short_p50 is the median of the same measure over short windows, so it describes moment-to-moment punch rather than the whole-file figure one loud passage can dominate.\n- lra is EBU R128 loudness range: how much the loudness varies across the programme, after a relative gate drops the quiet parts.\n- attack_log2_ms is log2 of the median 10-90% transient rise time in milliseconds, so +1.0 is twice as slow.\n- percussive_logit is the percussive fraction of the signal after harmonic-percussive separation, on a logit scale.\n- width_0 through width_8 are the side/mid energy ratio in dB, per band. More negative is narrower. Real mixes are usually narrow in the low bands and wider up top.\n- correlation_z is the Fisher transform of the left/right correlation. High means the channels are nearly the same signal, which is a narrow image; near zero means uncorrelated and very wide.\n- mono_compat_db is how much level the mix loses when folded to mono. Around -3 dB is normal for uncorrelated material; much worse than that means side energy is cancelling and the mix will hollow out on a phone speaker.\n- lufs_integrated is BS.1770-4 gated integrated loudness: perceived level over the whole programme, K-weighted so it tracks hearing rather than raw energy. Streaming platforms normalize to it, which is why hitting it matters more than peak level does.\n- true_peak_dbtp is the inter-sample peak, measured on 4x oversampled audio. It is higher than the sample peak, and it is the number a converter or a lossy encoder actually clips against, which is why delivery targets leave a dB of headroom below 0.\n\nHow to translate:\n- Name only what the brief asks for. Every dimension you name becomes a constraint the controller must satisfy, and naming a dimension the brief is silent about spends the render budget on something nobody asked for.\n- Watch the sign. More correlation_z is a *narrower* image. More mono_compat_db is *better* mono compatibility. Higher attack_log2_ms is a *slower* transient.\n- A request for *more* of something is a positive offset on that region, and that stays true for the relative dimensions. band_clr is measured against the mean of all nine bands, but 'warmer' still means the low mids go up, not down: the relativity is in the unit, not in the direction of the request.\n- 'Keep X as it is' is a hold, not an offset. Holds are what stop the controller from trading away something the brief wanted preserved. Hold individual dimensions when the brief protects part of a family and moves the rest, which is the usual shape of a real request. Holding a whole family you were also asked to change leaves you nothing you are allowed to move.\n- When a brief names a frequency range, map it through the actual band edges rather than a rule of thumb:\n    band 0: 20-60 Hz\n    band 1: 60-120 Hz\n    band 2: 120-250 Hz\n    band 3: 250-500 Hz\n    band 4: 500-1000 Hz\n    band 5: 1000-2000 Hz\n    band 6: 2000-4000 Hz\n    band 7: 4000-8000 Hz\n    band 8: 8000-20000 Hz\n  So 'upper mids' at 2-4 kHz is band 6, not band 5. 'Boxy' at 300-600 Hz spans bands 3 and 4. 'Air' above 8 kHz is band 8.\n- 'Space' and 'width' are the width_* dimensions and correlation_z. 'Punch' is crest factor and attack time. 'Loud' is lufs_integrated.\n- If the brief is genuinely about something not measured here, say so in the rationale and leave it out rather than approximating it with a dimension that means something else.",
+    "type": "text"
+   }
+  ],
+  "tool_choice": {
+   "name": "set_target",
+   "type": "tool"
+  },
+  "tools": [
+   {
+    "description": "Translate the brief into signed offsets against measured dimensions. Offsets are relative to the audio's current values and expressed in tolerance units, so +2 means 'two tolerances more of this than it has now'. Name only what the brief actually asks for.",
+    "input_schema": {
+     "properties": {
+      "adjustments": {
+       "description": "The dimensions the brief asks to move.",
+       "items": {
+        "properties": {
+         "dimension": {
+          "description": "A scored dimension name.",
+          "enum": [
+           "attack_log2_ms",
+           "band_clr_0",
+           "band_clr_1",
+           "band_clr_2",
+           "band_clr_3",
+           "band_clr_4",
+           "band_clr_5",
+           "band_clr_6",
+           "band_clr_7",
+           "band_clr_8",
+           "correlation_z",
+           "crest_factor_db",
+           "crest_short_p50",
+           "flatness_logit",
+           "lra",
+           "lufs_integrated",
+           "mono_compat_db",
+           "percussive_logit",
+           "true_peak_dbtp",
+           "width_0",
+           "width_1",
+           "width_2",
+           "width_3",
+           "width_4",
+           "width_5",
+           "width_6",
+           "width_7",
+           "width_8"
+          ],
+          "type": "string"
+         },
+         "offset_tol": {
+          "description": "Signed offset in tolerance units. Positive means more of what the dimension measures. Magnitude below 1.0 is inside the metric's indifference band and will do nothing.",
+          "maximum": 8.0,
+          "minimum": -8.0,
+          "type": "number"
+         },
+         "reason": {
+          "description": "The words in the brief this comes from.",
+          "type": "string"
+         }
+        },
+        "required": [
+         "dimension",
+         "offset_tol",
+         "reason"
+        ],
+        "type": "object"
+       },
+       "maxItems": 8,
+       "type": "array"
+      },
+      "hold": {
+       "description": "Names to pin at their current values because the brief says they must not change: either a whole family, or individual dimensions. Use dimensions when the brief protects part of a family while asking to move the rest -- 'more width but keep the low end tight and mono' holds width_0, width_1 and mono_compat_db while width_6 to width_8 go up. Never hold something you are also adjusting.",
+       "items": {
+        "enum": [
+         "dynamics",
+         "loudness",
+         "spectral",
+         "stereo",
+         "transient",
+         "attack_log2_ms",
+         "band_clr_0",
+         "band_clr_1",
+         "band_clr_2",
+         "band_clr_3",
+         "band_clr_4",
+         "band_clr_5",
+         "band_clr_6",
+         "band_clr_7",
+         "band_clr_8",
+         "correlation_z",
+         "crest_factor_db",
+         "crest_short_p50",
+         "flatness_logit",
+         "lra",
+         "lufs_integrated",
+         "mono_compat_db",
+         "percussive_logit",
+         "true_peak_dbtp",
+         "width_0",
+         "width_1",
+         "width_2",
+         "width_3",
+         "width_4",
+         "width_5",
+         "width_6",
+         "width_7",
+         "width_8"
+        ],
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "rationale": {
+       "description": "One or two sentences on how you read the brief.",
+       "type": "string"
+      }
+     },
+     "required": [
+      "adjustments",
+      "rationale"
+     ],
+     "type": "object"
+    },
+    "name": "set_target"
+   }
+  ]
+ },
+ "response": {
+  "container": null,
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01EHPnufd3oM85guqbwFxh3y",
+    "input": {
+     "adjustments": [
+      {
+       "dimension": "lufs_integrated",
+       "offset_tol": 6.0,
+       "reason": "Get it up to streaming level"
+      },
+      {
+       "dimension": "crest_factor_db",
+       "offset_tol": 0.0,
+       "reason": "Without squashing the dynamics"
+      }
+     ],
+     "hold": [
+      "crest_factor_db",
+      "crest_short_p50"
+     ],
+     "rationale": "The brief asks to increase loudness to streaming level (raising lufs_integrated significantly) while preserving dynamics (holding crest_factor_db and crest_short_p50 steady). At -12.6 LUFS the audio is about 6-7 tolerances below typical streaming targets around -14 LUFS, and the crest factors at +13.8 dB show healthy dynamics worth protecting."
+    },
+    "name": "set_target",
+    "toolset_name": null,
+    "type": "tool_use"
+   }
+  ],
+  "id": "msg_011CeqTvZSUTWfghevJmmzJS",
+  "model": "claude-haiku-4-5-20251001",
+  "role": "assistant",
+  "stop_details": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "not_available",
+   "input_tokens": 3324,
+   "output_tokens": 264,
+   "output_tokens_details": null,
+   "server_tool_use": null,
+   "service_tier": "standard"
+  }
+ }
+}

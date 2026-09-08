@@ -48,7 +48,7 @@ from dataclasses import dataclass, field
 from typing import Final
 
 from headroom.agent.brief import BriefTarget
-from headroom.analysis.features import analyze
+from headroom.analysis.features import FeatureVector, analyze
 from headroom.analysis.spectral import N_BANDS
 from headroom.audio import AudioBuffer
 from headroom.control.critic import CriticConfig
@@ -182,8 +182,9 @@ CASES: Final[tuple[BriefCase, ...]] = (
 )
 
 #: ``(brief, features) -> (target, usage)``. Narrow on purpose, so the eval
-#: runs against a stub with no key.
-Translator = Callable[[str, object], tuple[BriefTarget, object]]
+#: runs against a stub with no key. The usage half is deliberately untyped:
+#: this module must not know what a token is.
+Translator = Callable[[str, FeatureVector], tuple[BriefTarget, object]]
 
 
 @dataclass
@@ -341,13 +342,59 @@ def run_case(
     )
 
 
-def render_markdown(results: Sequence[BriefResult]) -> str:
+def summarize(results: Sequence[BriefResult]) -> str:
+    """One line of aggregate scores. The cost named is the *controller's*: the
+    translation is one call per brief and is billed separately, because the
+    whole point of the comparison below is that the two are separable."""
+    n = len(results) or 1
+    controller = sum(r.trace.total_cost_usd for r in results if r.trace)
+    return (
+        f"{sum(r.passed for r in results)} of {len(results)} briefs satisfied all "
+        f"three. Means: translation {sum(r.translation_score for r in results) / n:.0%}, "
+        f"execution {sum(r.execution_score for r in results) / n:.0%}, "
+        f"collateral {sum(r.collateral_score for r in results) / n:.0%}. "
+        f"Controller cost ${controller:.4f}."
+    )
+
+
+def render_comparison(by_system: dict[str, Sequence[BriefResult]]) -> str:
+    """Two controllers, the same translations, side by side.
+
+    The translations are identical by construction -- replayed from the same
+    cassette -- so the translation column has to match and any difference in
+    the other two is the controller's alone. That is the whole experiment: the
+    model reads the intent, and the question is who should close the loop.
+    """
+    if len(by_system) < 2:
+        return ""
+    lines = [
+        "### Translation against controller",
+        "",
+        "The same recorded translations driving different controllers, so the "
+        "`translation` column is identical by construction and any difference "
+        "in the other two belongs to the controller alone.",
+        "",
+        "| controller | translation | execution | collateral | passed | controller cost |",
+        "|---|---|---|---|---|---|",
+    ]
+    for system, results in by_system.items():
+        n = len(results) or 1
+        lines.append(
+            f"| `{system}` | {sum(r.translation_score for r in results) / n:.0%} | "
+            f"{sum(r.execution_score for r in results) / n:.0%} | "
+            f"{sum(r.collateral_score for r in results) / n:.0%} | "
+            f"{sum(r.passed for r in results)}/{len(results)} | "
+            f"${sum(r.trace.total_cost_usd for r in results if r.trace):.4f} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_markdown(results: Sequence[BriefResult], heading: str = "### Briefs") -> str:
     """The brief table, as it appears in the report."""
     if not results:
         return ""
     lines = [
-        "### Briefs",
-        "",
+        *([heading, ""] if heading else []),
         "Nothing here is judged by a model. Each brief carries the regions it "
         "must move and the direction, written down in advance, and all three "
         "columns are arithmetic. `translation` is whether the target named the "
@@ -366,15 +413,8 @@ def render_markdown(results: Sequence[BriefResult]) -> str:
             f"| {r.case.label} | {r.translation_score:.0%} | {r.execution_score:.0%} | "
             f"{r.collateral_score:.0%} | {renders} | ${cost:.4f} |"
         )
-    n = len(results)
     lines.append("")
-    lines.append(
-        f"{sum(r.passed for r in results)} of {n} briefs satisfied all three. "
-        f"Means: translation {sum(r.translation_score for r in results) / n:.0%}, "
-        f"execution {sum(r.execution_score for r in results) / n:.0%}, "
-        f"collateral {sum(r.collateral_score for r in results) / n:.0%}. "
-        f"Total ${sum(r.trace.total_cost_usd for r in results if r.trace):.4f}."
-    )
+    lines.append(summarize(results))
     failures = [r for r in results if r.error]
     if failures:
         lines.append("")

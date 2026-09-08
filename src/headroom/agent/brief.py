@@ -30,6 +30,7 @@ cannot actually be executed gets caught.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from typing import Any, Final
 
@@ -338,24 +339,36 @@ def parse(brief: str, arguments: dict[str, Any]) -> BriefTarget:
     )
 
 
-def _as_list(raw: object) -> tuple[Sequence[Any], bool]:
-    """Coerce the ``adjustments`` argument into a list, repairing one known
-    tool-use failure mode.
+#: A leading ``+`` on a number, which JSON does not allow.
+#:
+#: Both halves of this repair were found by reading a real transcript rather
+#: than by anticipating them. A model asked for signed offsets will sometimes
+#: serialize the array argument as a *string* of JSON, and will sometimes write
+#: the positive ones as ``+2.0`` because that is how a signed quantity is
+#: written -- which the standard rejects. Together they discarded a translation
+#: that was, on inspection, exactly correct in every dimension and sign, and
+#: scored it as a comprehension failure. The repair is narrow: a ``+`` is
+#: removed only where it directly follows a key's colon and precedes a digit,
+#: so a ``+`` inside a string value is untouched.
+_LEADING_PLUS: Final[re.Pattern[str]] = re.compile(r"(:\s*)\+(\d|\.)")
 
-    Models occasionally serialize an array argument as a *string* containing
-    the JSON rather than as an array. Observed in practice, and the strict
-    reading -- treat a string as "no adjustments" -- threw away a translation
-    that was otherwise exactly right, turning a model quirk into a scored
-    comprehension failure. Decoding it is a two-line repair and the rate is
-    recorded, so the quirk stays visible instead of being hidden by the fix.
+
+def _as_list(raw: object) -> tuple[Sequence[Any], bool]:
+    """Coerce the ``adjustments`` argument into a list, repairing what can be.
+
+    The rate of repair is recorded rather than swallowed: a quirk that has been
+    papered over silently is a quirk nobody knows about, and if it ever becomes
+    common the number is the signal to change the prompt instead.
     """
     if isinstance(raw, list):
         return raw, False
-    if isinstance(raw, str):
+    if not isinstance(raw, str):
+        return [], False
+    for candidate in (raw, _LEADING_PLUS.sub(r"\1\2", raw)):
         try:
-            decoded = json.loads(raw)
+            decoded = json.loads(candidate)
         except json.JSONDecodeError:
-            return [], False
+            continue
         if isinstance(decoded, list):
             return decoded, True
     return [], False

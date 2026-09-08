@@ -418,6 +418,15 @@ and stored results.</p>
     return out
 
 
+#: Systems whose output is worth listening to. The floors are in the tables
+#: because a floor that is not zero is evidence; they are not here because
+#: nobody needs to hear random EQ, and every player committed to the repository
+#: is half a megabyte of audio.
+SHOWCASE_SYSTEMS: Final[frozenset[str]] = frozenset(
+    {"heuristic", "agent-scaffold", "agent", "optimizer"}
+)
+
+
 def make_showcase(
     track_id: str,
     kind: str,
@@ -426,6 +435,7 @@ def make_showcase(
     *,
     source: AudioBuffer,
     degradation_describe: str = "",
+    systems: frozenset[str] = SHOWCASE_SYSTEMS,
 ) -> Showcase:
     """Reproduce the audio for one cell so it can be listened to.
 
@@ -457,6 +467,8 @@ def make_showcase(
     outputs: dict[str, AudioBuffer] = {}
     by_system: dict[str, RunTrace] = {}
     for trace in sorted(cell, key=lambda t: _order_key(t.system)):
+        if trace.system not in systems:
+            continue
         outputs[trace.system] = render_chain(degraded, trace.final_chain)
         by_system[trace.system] = trace
 
