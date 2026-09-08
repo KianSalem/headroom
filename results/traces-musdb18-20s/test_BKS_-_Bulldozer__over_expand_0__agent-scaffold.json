@@ -1,0 +1,966 @@
+{
+  "trace_schema_version": "2",
+  "system": "agent-scaffold",
+  "track_id": "test/BKS_-_Bulldozer",
+  "degradation_kind": "over_expand",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "ratio": 3.092,
+    "threshold_db": -6.666
+  },
+  "degradation_lossy": false,
+  "source_hash": "66c1c27b77a1fa745f8fac7cb200c0eb",
+  "target_label": "original:test/BKS_-_Bulldozer",
+  "target_provenance": "full feature vector",
+  "initial_distance": 4.516392654693563,
+  "final_distance": 0.8327835417911704,
+  "recovery_ratio": 0.8156086936051234,
+  "converged": false,
+  "abort_reason": "no_improvement",
+  "final_chain": {
+    "ops": [
+      {
+        "id": "218127f6",
+        "kind": "gain",
+        "gain_db": 24.0
+      },
+      {
+        "id": "2558d10b",
+        "kind": "compressor",
+        "threshold_db": -23.36,
+        "ratio": 3.0148,
+        "attack_ms": 10.0,
+        "release_ms": 120.0,
+        "makeup_db": 0.0
+      },
+      {
+        "id": "61098731",
+        "kind": "stereo_width",
+        "width": 0.8175,
+        "band": 0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 6.5136
+          }
+        ]
+      },
+      "chain_fingerprint": "06863b155db0b1a57f8cca6f869b8b7d",
+      "distance_score": 3.1854009636195997,
+      "n_out_of_tolerance": 14,
+      "by_family": {
+        "loudness": 1.803371,
+        "dynamics": 3.27499,
+        "spectral": 1.346703,
+        "stereo": 0.512169,
+        "transient": 3.209546
+      },
+      "worst": [
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": 2.4661,
+          "scaled": 12.3306,
+          "excess": 11.3306
+        },
+        {
+          "name": "crest_factor_db",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": 5.3168,
+          "scaled": 5.3168,
+          "excess": 4.3168
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": 5.6519,
+          "scaled": 5.6519,
+          "excess": 4.6519
+        },
+        {
+          "name": "crest_short_p50",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": 4.757,
+          "scaled": 4.757,
+          "excess": 3.757
+        },
+        {
+          "name": "band_clr_0",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 5.3098,
+          "scaled": 7.0798,
+          "excess": 6.0798
+        }
+      ],
+      "action": "gain.gain_db +6.514",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 1,
+      "elapsed_s": 1.4416,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -13.03 tol | 1 edit(s): gain.gain_db +6.514 | level is -13.03 tol off"
+    },
+    {
+      "index": 1,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 6.5136
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "d3ccc073c1a453c3ae5fc448101c5e4e",
+      "distance_score": 4.630791345226268,
+      "n_out_of_tolerance": 6,
+      "by_family": {
+        "loudness": 21.247366,
+        "dynamics": 0.00244,
+        "spectral": 0.187086,
+        "stereo": 0.0,
+        "transient": 0.007337
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -7.9301,
+          "scaled": -15.8601,
+          "excess": -14.8601
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -6.8428,
+          "scaled": -6.8428,
+          "excess": -5.8428
+        },
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.5246,
+          "scaled": 3.4972,
+          "excess": 2.4972
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": 0.3083,
+          "scaled": 1.5417,
+          "excess": 0.5417
+        },
+        {
+          "name": "crest_factor_db",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": 1.1562,
+          "scaled": 1.1562,
+          "excess": 0.1562
+        }
+      ],
+      "action": "comp.ratio +2.015",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 2,
+      "elapsed_s": 2.8731,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "dynamics",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=dynamics | targeting percussive_logit +12.33 tol | 1 edit(s): comp.ratio +2.015 | crest_factor_db is +5.32 tol, too dynamic; crest_short_p50 is +4.76 tol, too dynamic"
+    },
+    {
+      "index": 2,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 13.9
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "ed9857ca68eb707646076367c18daf30",
+      "distance_score": 2.8003943179297712,
+      "n_out_of_tolerance": 4,
+      "by_family": {
+        "loudness": 7.459772,
+        "dynamics": 0.0,
+        "spectral": 0.370816,
+        "stereo": 0.01162,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -4.9161,
+          "scaled": -9.8321,
+          "excess": -8.8321
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -4.3927,
+          "scaled": -4.3927,
+          "excess": -3.3927
+        },
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.6774,
+          "scaled": 4.5158,
+          "excess": 3.5158
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 1.7994,
+          "scaled": 1.7994,
+          "excess": 0.7994
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": 0.7655,
+          "scaled": 0.7655,
+          "excess": 0.0
+        }
+      ],
+      "action": "gain.gain_db +7.386",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 3,
+      "elapsed_s": 4.3109,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -15.86 tol | 1 edit(s): gain.gain_db +7.386 | level is -15.86 tol off; peaks sit below the ceiling; level, not limiting"
+    },
+    {
+      "index": 3,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 18.5544
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "baca8cd2a8484e97d4f00b9d31f66e4a",
+      "distance_score": 1.8035674904860273,
+      "n_out_of_tolerance": 4,
+      "by_family": {
+        "loudness": 2.820911,
+        "dynamics": 0.0,
+        "spectral": 0.411223,
+        "stereo": 0.020721,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -3.2583,
+          "scaled": -6.5166,
+          "excess": -5.5166
+        },
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7054,
+          "scaled": 4.7024,
+          "excess": 3.7024
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -2.8489,
+          "scaled": -2.8489,
+          "excess": -1.8489
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 2.0675,
+          "scaled": 2.0675,
+          "excess": 1.0675
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": 0.5812,
+          "scaled": 0.5812,
+          "excess": 0.0
+        }
+      ],
+      "action": "gain.gain_db +4.654",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 4,
+      "elapsed_s": 5.7392,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -9.83 tol | 1 edit(s): gain.gain_db +4.654 | level is -9.83 tol off; peaks sit below the ceiling; level, not limiting"
+    },
+    {
+      "index": 4,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 21.608
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "44da5a564f21d4b37e53fe30d00a32f1",
+      "distance_score": 1.2156026022866746,
+      "n_out_of_tolerance": 4,
+      "by_family": {
+        "loudness": 1.030801,
+        "dynamics": 0.0,
+        "spectral": 0.423063,
+        "stereo": 0.023825,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -2.2081,
+          "scaled": -4.4162,
+          "excess": -3.4162
+        },
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7133,
+          "scaled": 4.7553,
+          "excess": 3.7553
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.836,
+          "scaled": -1.836,
+          "excess": -0.836
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 2.1447,
+          "scaled": 2.1447,
+          "excess": 1.1447
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": 0.4927,
+          "scaled": 0.4927,
+          "excess": 0.0
+        }
+      ],
+      "action": "gain.gain_db +3.054",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 5,
+      "elapsed_s": 7.1708,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -6.52 tol | 1 edit(s): gain.gain_db +3.054 | level is -6.52 tol off; peaks sit below the ceiling; level, not limiting"
+    },
+    {
+      "index": 5,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 23.6301
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "6175e63151ae2fb50f784f7b29b06dce",
+      "distance_score": 0.8955993759771458,
+      "n_out_of_tolerance": 5,
+      "by_family": {
+        "loudness": 0.349635,
+        "dynamics": 0.0,
+        "spectral": 0.426992,
+        "stereo": 0.025465,
+        "transient": 7e-06
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7159,
+          "scaled": 4.7727,
+          "excess": 3.7727
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -1.5208,
+          "scaled": -3.0416,
+          "excess": -2.0416
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 2.1834,
+          "scaled": 2.1834,
+          "excess": 1.1834
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.1653,
+          "scaled": -1.1653,
+          "excess": -0.1653
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": -0.2033,
+          "scaled": -1.0166,
+          "excess": -0.0166
+        }
+      ],
+      "action": "gain.gain_db +2.022",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 6,
+      "elapsed_s": 8.6046,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -4.42 tol | 1 edit(s): gain.gain_db +2.022 | level is -4.42 tol off; peaks sit below the ceiling; level, not limiting"
+    },
+    {
+      "index": 6,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 24.0
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "a7d195d1bc5f1d58d3b047c2215ef5fd",
+      "distance_score": 0.8474929967994582,
+      "n_out_of_tolerance": 5,
+      "by_family": {
+        "loudness": 0.26752,
+        "dynamics": 0.0,
+        "spectral": 0.425047,
+        "stereo": 0.025659,
+        "transient": 1.8e-05
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7146,
+          "scaled": 4.7641,
+          "excess": 3.7641
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -1.3956,
+          "scaled": -2.7912,
+          "excess": -1.7912
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 2.188,
+          "scaled": 2.188,
+          "excess": 1.188
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.0426,
+          "scaled": -1.0426,
+          "excess": -0.0426
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": -0.2054,
+          "scaled": -1.0269,
+          "excess": -0.0269
+        }
+      ],
+      "action": "gain.gain_db +0.370",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 7,
+      "elapsed_s": 10.0293,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "loudness",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=loudness | targeting lufs_integrated -3.04 tol | 1 edit(s): gain.gain_db +0.370 | level is -3.04 tol off; peaks sit below the ceiling; level, not limiting | skipped: eq passed: nothing I own maps onto an op that moves it"
+    },
+    {
+      "index": 7,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 24.0
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          },
+          {
+            "id": "61098731",
+            "kind": "stereo_width",
+            "width": 0.8175,
+            "band": 0
+          }
+        ]
+      },
+      "chain_fingerprint": "767e7af866c20d35fff41ee042ff1334",
+      "distance_score": 0.8327835417911704,
+      "n_out_of_tolerance": 5,
+      "by_family": {
+        "loudness": 0.268109,
+        "dynamics": 0.0,
+        "spectral": 0.425397,
+        "stereo": 4e-06,
+        "transient": 1.8e-05
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7148,
+          "scaled": 4.7656,
+          "excess": 3.7656
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -1.3962,
+          "scaled": -2.7924,
+          "excess": -1.7924
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.0683,
+          "scaled": -1.0683,
+          "excess": -0.0683
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": -0.2054,
+          "scaled": -1.0269,
+          "excess": -0.0269
+        },
+        {
+          "name": "width_0",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 1.0154,
+          "scaled": 1.0154,
+          "excess": 0.0154
+        }
+      ],
+      "action": "width.band0 -0.182",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 8,
+      "elapsed_s": 11.474,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "stereo",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=stereo | targeting width_0 +2.19 tol | 1 edit(s): width.band0 -0.182 | width_0 is +2.19 tol | skipped: eq passed: nothing I own maps onto an op that moves it; loudness passed: nothing I own maps onto an op that moves it"
+    },
+    {
+      "index": 8,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 24.0
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          },
+          {
+            "id": "61098731",
+            "kind": "stereo_width",
+            "width": 0.7445,
+            "band": 0
+          }
+        ]
+      },
+      "chain_fingerprint": "2d05cced19bfb92c40272a60112542cb",
+      "distance_score": 0.8330166567123654,
+      "n_out_of_tolerance": 4,
+      "by_family": {
+        "loudness": 0.268369,
+        "dynamics": 0.0,
+        "spectral": 0.425529,
+        "stereo": 0.0,
+        "transient": 1.8e-05
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7149,
+          "scaled": 4.7662,
+          "excess": 3.7662
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -1.3964,
+          "scaled": -2.7928,
+          "excess": -1.7928
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.0786,
+          "scaled": -1.0786,
+          "excess": -0.0786
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": -0.2054,
+          "scaled": -1.0269,
+          "excess": -0.0269
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": 0.4366,
+          "scaled": 0.4366,
+          "excess": 0.0
+        }
+      ],
+      "action": "width.band0 -0.073",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 9,
+      "elapsed_s": 12.9264,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "stereo",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=stereo | targeting width_0 +1.02 tol | 1 edit(s): width.band0 -0.073 | width_0 is +1.02 tol | skipped: eq dropped after 2 passes; loudness passed: nothing I own maps onto an op that moves it; dynamics passed: nothing I own maps onto an op that moves it"
+    },
+    {
+      "index": 9,
+      "chain": {
+        "ops": [
+          {
+            "id": "218127f6",
+            "kind": "gain",
+            "gain_db": 24.0
+          },
+          {
+            "id": "2558d10b",
+            "kind": "compressor",
+            "threshold_db": -23.36,
+            "ratio": 3.0148,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          },
+          {
+            "id": "61098731",
+            "kind": "stereo_width",
+            "width": 0.7445,
+            "band": 0
+          }
+        ]
+      },
+      "chain_fingerprint": "2d05cced19bfb92c40272a60112542cb",
+      "distance_score": 0.8330166567123654,
+      "n_out_of_tolerance": 4,
+      "by_family": {
+        "loudness": 0.268369,
+        "dynamics": 0.0,
+        "spectral": 0.425529,
+        "stereo": 0.0,
+        "transient": 1.8e-05
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "family": "spectral",
+          "unit": "logit",
+          "delta": 0.7149,
+          "scaled": 4.7662,
+          "excess": 3.7662
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -1.3964,
+          "scaled": -2.7928,
+          "excess": -1.7928
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -1.0786,
+          "scaled": -1.0786,
+          "excess": -0.0786
+        },
+        {
+          "name": "percussive_logit",
+          "family": "transient",
+          "unit": "logit",
+          "delta": -0.2054,
+          "scaled": -1.0269,
+          "excess": -0.0269
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": 0.4366,
+          "scaled": 0.4366,
+          "excess": 0.0
+        }
+      ],
+      "action": "",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "abort",
+      "renders_used": 9,
+      "elapsed_s": 12.9266,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "no_improvement: no specialist could act: eq dropped after 2 passes; loudness dropped after 2 passes; dynamics passed: nothing I own maps onto an op that moves it"
+    }
+  ],
+  "n_renders": 9,
+  "wall_time_s": 12.9362,
+  "total_cost_usd": 0.0,
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "total_cache_read_tokens": 0,
+  "git_sha": "859dea2",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {
+    "turns": 9,
+    "settled": 9,
+    "helped": 7,
+    "hit_rate": 0.7778,
+    "by_role": {
+      "eq": 0,
+      "dynamics": 1,
+      "stereo": 2,
+      "loudness": 6
+    },
+    "ownership_violations": 0,
+    "rejected_calls": 0,
+    "consults": 15,
+    "repositions": 0,
+    "empty_rounds": 0,
+    "passes": {
+      "eq": 2,
+      "loudness": 2,
+      "dynamics": 2
+    }
+  }
+}

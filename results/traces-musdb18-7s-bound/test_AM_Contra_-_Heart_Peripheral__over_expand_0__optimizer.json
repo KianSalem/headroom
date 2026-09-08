@@ -1,0 +1,132 @@
+{
+  "trace_schema_version": "2",
+  "system": "optimizer",
+  "track_id": "test/AM_Contra_-_Heart_Peripheral",
+  "degradation_kind": "over_expand",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "ratio": 3.092,
+    "threshold_db": -3.535
+  },
+  "degradation_lossy": false,
+  "source_hash": "1f898c8b83e566b82e7d697a91022282",
+  "target_label": "original:test/AM_Contra_-_Heart_Peripheral",
+  "target_provenance": "full feature vector",
+  "initial_distance": 6.9845183142653005,
+  "final_distance": 0.4246997579455493,
+  "recovery_ratio": 0.9391941235119772,
+  "converged": false,
+  "abort_reason": "max_steps",
+  "final_chain": {
+    "ops": [
+      {
+        "id": "f059ff86",
+        "kind": "gain",
+        "gain_db": 22.5556
+      },
+      {
+        "id": "cb0c87d7",
+        "kind": "compressor",
+        "threshold_db": -21.73,
+        "ratio": 2.1846,
+        "attack_ms": 10.0,
+        "release_ms": 120.0,
+        "makeup_db": 0.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "f059ff86",
+            "kind": "gain",
+            "gain_db": 22.5556
+          },
+          {
+            "id": "cb0c87d7",
+            "kind": "compressor",
+            "threshold_db": -21.73,
+            "ratio": 2.1846,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "389fe64847cd3ef237f6573f12d4c3f0",
+      "distance_score": 0.4246997579455493,
+      "n_out_of_tolerance": 1,
+      "by_family": {
+        "loudness": 0.0,
+        "dynamics": 0.0,
+        "spectral": 0.18037,
+        "stereo": 0.0,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "delta": 0.5178,
+          "scaled": 3.452
+        },
+        {
+          "name": "lufs_integrated",
+          "delta": -0.3287,
+          "scaled": -0.6575
+        },
+        {
+          "name": "true_peak_dbtp",
+          "delta": 0.0987,
+          "scaled": 0.0987
+        },
+        {
+          "name": "lra",
+          "delta": 0.0349,
+          "scaled": 0.0349
+        },
+        {
+          "name": "crest_factor_db",
+          "delta": 0.4749,
+          "scaled": 0.4749
+        }
+      ],
+      "action": "powell.3start -6.5598",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "abort",
+      "renders_used": 250,
+      "elapsed_s": 97.6988,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "multi-start Powell, 250 renders, 4 seeded chain(s). Unequal budget by design; every other system gets 14."
+    }
+  ],
+  "n_renders": 250,
+  "wall_time_s": 97.7021,
+  "total_cost_usd": 0.0,
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "total_cache_read_tokens": 0,
+  "git_sha": "859dea2",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {}
+}
