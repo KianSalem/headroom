@@ -358,10 +358,20 @@ headroom render mix.wav chain.json out.wav        # apply a declarative chain
 headroom presets                                  # delivery targets
 
 headroom synth-corpus --out audio/synthetic       # a corpus with no download
+headroom fetch-corpus --archive musdb18 --tracks 6 # real music: 4.7 GB, pinned by md5
 headroom corpus audio/synthetic                   # a stable train/test manifest
+headroom corpus-stats                             # what the corpus is actually like
 headroom eval                                     # the matrix; free systems by default
 headroom report --html results/report             # tables plus a listening page
 ```
+
+`fetch-corpus` exists because the honest headline needs real music and the standard corpus
+for it, MUSDB18-HQ, is a 22.66 GB download. It pulls the same tracks from a smaller
+distribution instead, verifies them against the MD5 Zenodo publishes, decodes only the
+mixture stream out of each five-stream stem file, and deletes the archive afterwards —
+peak disk is the archive plus one track, and what survives is about 50 MB of clips. The
+audio is non-commercial and per-track licensed, so it is never committed, redistributed,
+or embedded in the report; the manifest records the digest that was verified instead.
 
 Chain ordering is enforced by the system, not trusted from the input. Hand it a chain with
 the limiter first and it says so:

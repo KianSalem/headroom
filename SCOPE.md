@@ -148,17 +148,83 @@ input dtype — which puts the floor near −145 dB, far below anything measured
 
 ## Corpus
 
-**MUSDB18-HQ**, downloaded not vendored (mixed CC BY-NC-SA, academic use, needs
-a one-time Zenodo access request). 150 uncompressed stereo tracks with stems
-for a possible v2.
+Two corpora, and the difference between them is a result in its own right.
+
+**`headroom synth-corpus`** — six stationary synthetic tracks, no download.
+Runs the pipeline offline and in CI. Not a source of headline numbers.
+
+**`headroom fetch-corpus`** — real music, via MUSDB18.
 
 The degrade-and-recover paradigm targets the original's own feature vector, so
-the source needs to be well-produced, legally shareable and uncompressed — not
-a commercial master. A public corpus is therefore strictly better than private
-material: anyone can download the same files and reproduce every number.
+the source needs to be well-produced and legally shareable, not a commercial
+master. A public corpus is therefore strictly better than private material:
+anyone can download the same files and reproduce every number.
+
+### Why not MUSDB18-HQ
+
+SPEC named MUSDB18-HQ. It turned out to be the wrong choice for a portfolio
+piece, for a reason that had nothing to do with audio quality: it is a **22.66
+GB** single zip. A reviewer will not spend that to check somebody's numbers,
+and the machine this was built on did not have the disk.
+
+Two corrections to what this document previously claimed, both found by asking
+Zenodo's API rather than repeating the folklore:
+
+- MUSDB18-HQ does **not** need an access request. Its record is
+  `access_right: open`. The 22 GB is the only real barrier.
+- Its licence is **`other-nc`** — non-commercial, per-track — not
+  CC BY-NC-SA. That matters, because non-commercial means the audio must stay
+  out of a portfolio site's HTML report, not merely out of git.
+
+`fetch-corpus` pulls the same tracks from a smaller distribution instead:
+`musdb18` (4.68 GB, full-length mixes) or `musdb18-7s` (147 MB, the SiSEC18
+7-second excerpts). Both are open access, both are pinned by the size and MD5
+Zenodo publishes, and only the mixture stream is decoded out of each
+five-stream stem file — so peak disk is the archive plus one track, and the
+archive is deleted afterwards.
+
+Three things that cost real time and are worth writing down:
+
+- **Zenodo ignores `Range`.** A resumed transfer appends a second full body to
+  the partial one. The result has a valid central directory and every member
+  fails with "Bad magic number for file header". Partials are now discarded
+  rather than resumed.
+- **The stem streams carry no titles.** Nothing in the container says which of
+  the five is the mixture. Rather than trust the convention, all five were
+  decoded and summed: streams 1–4 reproduce stream 0 to within 0.018 peak
+  absolute error, which is AAC coding noise. Stream 0 is the linear mixture.
+- **The 7-second variant cannot support the dynamics measurement.** A 6.8 s
+  excerpt gives about four 3 s short-term loudness windows, so `lra` rests on
+  thin evidence — and `lra` is exactly where the architecture showed its
+  largest win. It is kept for proving the pipeline runs, not for quoting.
+
+### The synthetic corpus flatters everything, measured
+
+`headroom corpus-stats` exists so that this is a number rather than a caveat.
+Both test splits, as the loop actually sees them:
+
+| | synthetic | real music |
+|---|---|---|
+| `lra` | 0.03 LU | **1.96 LU** |
+| `plr` | 8.94 dB | 12.92 dB |
+| `spectral_flatness` | 0.329 | **0.004** |
+| `spectral_centroid` | 4008 Hz | 753 Hz |
+| `spectral_tilt` | −0.50 dB/oct | −5.34 dB/oct |
+| `correlation` | +0.32 | +0.70 |
+| `mono_compat_db` | −3.24 dB | −0.86 dB |
+| `attack_time_p50` | 8.0 ms | 20.6 ms |
+| `percussive_ratio` | 0.043 | **0.255** |
+
+The synthetic corpus is 65× more stationary, noise-like where music is tonal,
+and has a sixth of the transient energy. One synthetic track even has
+*negative* stereo correlation, which no mix would. Every deterministic
+controller in the table benefits from that, because a proportional response to
+a stationary signal is close to solving the problem analytically.
 
 Demo audio for the report comes from separately-sourced CC-BY clips committed
-under `audio/demo/`, so hosting them publicly is unambiguous.
+under `audio/demo/`, so hosting them publicly is unambiguous. Real-music
+results are reported as numbers only — no players — because the corpus licence
+is non-commercial.
 
 ## What the results actually showed
 

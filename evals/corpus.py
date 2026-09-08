@@ -58,9 +58,10 @@ MUSDB18_HQ: Final[CorpusSource] = CorpusSource(
     license="mixed CC BY-NC-SA 4.0 / 3.0; academic use; per-track terms",
     redistributable=False,
     note=(
-        "150 uncompressed stereo tracks with stems. Requires a one-time Zenodo "
-        "access request. Not redistributed by this repository: download it and "
-        "point --corpus at the extracted directory."
+        "150 uncompressed stereo tracks with stems. Open access, but 22.66 GB. "
+        "Not redistributed by this repository. For the same tracks at a size a "
+        "laptop can hold, 'headroom fetch-corpus' pulls the 4.68 GB MUSDB18 or "
+        "the 147 MB SiSEC18 excerpts instead; see evals/fetch.py."
     ),
 )
 
@@ -94,6 +95,11 @@ class CorpusManifest(BaseModel):
     created_at: str
     test_fraction: float
     split_method: str = "blake2b(track_id) -- stable under insertion"
+    #: Where the audio came from, and the digest that was actually verified on
+    #: the way in. A results table is only as reproducible as its inputs are
+    #: identifiable, and "MUSDB18" alone does not identify a distribution.
+    source_url: str = ""
+    source_md5: str = ""
     tracks: tuple[TrackRecord, ...] = ()
 
     def train(self) -> tuple[TrackRecord, ...]:
@@ -132,12 +138,33 @@ def iter_audio_files(root: Path) -> Iterator[Path]:
             yield path
 
 
+#: Directory names that carry a corpus's own train/test split.
+CANONICAL_SPLIT_DIRS: Final[frozenset[str]] = frozenset({"train", "test"})
+
+
+def split_from_track_id(track_id: str) -> Split | None:
+    """The split a corpus assigned itself, read off the path, or None.
+
+    MUSDB18 ships its tracks under ``train/`` and ``test/``, and the source
+    separation literature reports against that split. Adopting it costs
+    nothing and makes these numbers comparable to that work -- whereas hashing
+    would invent a third split nobody else uses.
+    """
+    head, _, rest = track_id.partition("/")
+    if rest and head in CANONICAL_SPLIT_DIRS:
+        return "train" if head == "train" else "test"
+    return None
+
+
 def scan_directory(
     root: str | Path,
     corpus_name: str = MUSDB18_HQ.name,
     test_fraction: float = TEST_FRACTION,
     license_note: str = MUSDB18_HQ.license,
     min_duration_s: float = 10.0,
+    prefer_canonical_split: bool = True,
+    source_url: str = "",
+    source_md5: str = "",
 ) -> CorpusManifest:
     """Build a manifest by scanning a directory of audio files.
 
@@ -151,6 +178,7 @@ def scan_directory(
         raise NotADirectoryError(f"corpus root not found: {root_path}")
 
     records: list[TrackRecord] = []
+    canonical_seen = False
     for path in iter_audio_files(root_path):
         info = sf.info(str(path))
         if info.samplerate < MIN_SAMPLE_RATE or info.duration < min_duration_s:
@@ -158,6 +186,9 @@ def scan_directory(
         if info.channels > 2:
             continue
         track_id = path.relative_to(root_path).with_suffix("").as_posix()
+        canonical = split_from_track_id(track_id) if prefer_canonical_split else None
+        if canonical is not None:
+            canonical_seen = True
         records.append(
             TrackRecord(
                 track_id=track_id,
@@ -165,7 +196,7 @@ def scan_directory(
                 sample_rate=int(info.samplerate),
                 duration_s=float(info.duration),
                 channels=int(info.channels),
-                split=assign_split(track_id, test_fraction),
+                split=canonical or assign_split(track_id, test_fraction),
                 license=license_note,
                 source=corpus_name,
             )
@@ -175,6 +206,13 @@ def scan_directory(
         corpus_name=corpus_name,
         created_at=datetime.now(UTC).isoformat(timespec="seconds"),
         test_fraction=test_fraction,
+        split_method=(
+            "corpus-canonical (train/ and test/ directories)"
+            if canonical_seen
+            else "blake2b(track_id) -- stable under insertion"
+        ),
+        source_url=source_url,
+        source_md5=source_md5,
         tracks=tuple(records),
     )
 

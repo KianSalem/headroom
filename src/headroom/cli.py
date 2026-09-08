@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Final
 
 from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
 
@@ -318,6 +319,7 @@ def _cmd_corpus(args: argparse.Namespace) -> int:
         corpus_name=args.name,
         test_fraction=args.test_fraction,
         license_note=args.license,
+        min_duration_s=args.min_duration,
     )
     save_manifest(manifest, args.out)
     sys.stdout.write(f"{manifest.summary()}\nwrote {args.out}\n")
@@ -336,7 +338,101 @@ def _cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+#: What each reported dimension is evidence *of*. The point of this command is
+#: that "the synthetic corpus is easier than real music" should be a
+#: measurement rather than a caveat in a readme, so each row names the property
+#: it stands for.
+_CHARACTER: Final[tuple[tuple[str, str, str], ...]] = (
+    ("lra", "LU", "loudness moves over time -- 0 means stationary"),
+    ("plr", "dB", "peak-to-loudness headroom"),
+    ("spectral_flatness", "", "noise-like at 1, tonal near 0"),
+    ("spectral_centroid", "Hz", "where the energy sits"),
+    ("spectral_tilt", "dB/oct", "slope of the spectrum"),
+    ("correlation", "", "stereo field: +1 mono, 0 wide, negative unnatural"),
+    ("mono_compat_db", "dB", "what a mono fold-down costs"),
+    ("attack_time_p50", "ms", "how fast transients rise"),
+    ("percussive_ratio", "", "share of energy in transients"),
+)
+
+
+def _cmd_corpus_stats(args: argparse.Namespace) -> int:
+    from statistics import median
+
+    from evals.corpus import load_manifest
+    from evals.runner import clip
+
+    manifest = load_manifest(args.manifest)
+    tracks = manifest.test() if args.split == "test" else manifest.train()
+    if not tracks:
+        sys.stderr.write(f"manifest has no {args.split} tracks\n")
+        return 2
+
+    measured = [analyze(clip(t.load(), args.clip_seconds)) for t in tracks]
+    # The *measured* duration, not the requested clip: a track shorter than the
+    # clip length is used whole, and a header that claimed otherwise would
+    # misdescribe every number under it.
+    seconds = sorted(float(f.duration_s) for f in measured)
+    span = (
+        f"{seconds[0]:.1f} s"
+        if seconds[0] == seconds[-1]
+        else f"{seconds[0]:.1f}-{seconds[-1]:.1f} s"
+    )
+    sys.stdout.write(
+        f"{manifest.corpus_name} -- {len(tracks)} {args.split} tracks, {span} each\n\n"
+    )
+    width = max(len(name) for name, _, _ in _CHARACTER)
+    for name, unit, why in _CHARACTER:
+        values = [float(getattr(f, name)) for f in measured]
+        mid, low, high = median(values), min(values), max(values)
+        sys.stdout.write(
+            f"  {name:<{width}}  {mid:+9.3f} {unit:<7} [{low:+.3f} .. {high:+.3f}]  {why}\n"
+        )
+    return 0
+
+
+def _cmd_fetch_corpus(args: argparse.Namespace) -> int:
+    from evals.corpus import save_manifest, scan_directory
+    from evals.fetch import ARCHIVES, Split, fetch
+
+    def log(line: str) -> None:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+    archive = ARCHIVES[args.archive]
+    limit: dict[Split, int] = {"train": args.train_tracks, "test": args.tracks}
+    result = fetch(
+        args.archive,
+        args.out,
+        cache_dir=args.cache_dir,
+        limit=limit,
+        seconds=args.seconds,
+        keep_archive=args.keep_archive,
+        log=log,
+    )
+    sys.stdout.write(result.summary() + "\n")
+
+    manifest = scan_directory(
+        args.out,
+        corpus_name=archive.name,
+        license_note=archive.license,
+        min_duration_s=args.min_duration,
+        source_url=archive.record_url,
+        source_md5=archive.md5,
+    )
+    save_manifest(manifest, args.manifest)
+    sys.stdout.write(f"{manifest.summary()}\nwrote {args.manifest}\n")
+    sys.stdout.write(
+        "The audio is non-commercial and per-track licensed: it is not "
+        "committed, redistributed, or embedded in the report.\n"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
+    # Imported here so the archive choices offered on the command line cannot
+    # drift from the archives the fetcher actually knows how to verify.
+    from evals.fetch import ARCHIVES as _ARCHIVE_KEYS
+
     parser = argparse.ArgumentParser(prog="headroom", description=__doc__)
     parser.add_argument("--version", action="version", version=f"headroom {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -456,6 +552,46 @@ def build_parser() -> argparse.ArgumentParser:
     p_briefs.add_argument("--clip-seconds", type=float, default=20.0)
     p_briefs.set_defaults(func=_cmd_brief_eval)
 
+    p_stats = sub.add_parser(
+        "corpus-stats",
+        help="measure a corpus's character, so 'synthetic is easier' is a number",
+    )
+    p_stats.add_argument("--manifest", default="results/corpus_manifest.json")
+    p_stats.add_argument("--split", default="test", choices=("train", "test"))
+    p_stats.add_argument("--clip-seconds", type=float, default=20.0)
+    p_stats.set_defaults(func=_cmd_corpus_stats)
+
+    p_fetch = sub.add_parser(
+        "fetch-corpus",
+        help="download a real-music corpus, decode the mixtures, write a manifest",
+    )
+    p_fetch.add_argument(
+        "--archive",
+        choices=sorted(_ARCHIVE_KEYS),
+        default="musdb18",
+        help="musdb18 is 4.68 GB of full-length mixes; musdb18-7s is 147 MB of "
+        "7 s excerpts, too short to measure loudness range on",
+    )
+    p_fetch.add_argument("--out", default="audio/musdb18")
+    p_fetch.add_argument("--manifest", default="results/corpus_manifest.json")
+    p_fetch.add_argument(
+        "--tracks",
+        type=int,
+        default=6,
+        help="test tracks to fetch; every headline number comes from these",
+    )
+    p_fetch.add_argument("--train-tracks", type=int, default=2)
+    p_fetch.add_argument("--seconds", type=float, default=30.0)
+    p_fetch.add_argument("--min-duration", type=float, default=10.0)
+    p_fetch.add_argument("--cache-dir", default="~/.cache/headroom/archives")
+    p_fetch.add_argument(
+        "--keep-archive",
+        action="store_true",
+        help="keep the downloaded archive; it is several times the size of the "
+        "audio kept from it, so by default it is deleted after extraction",
+    )
+    p_fetch.set_defaults(func=_cmd_fetch_corpus)
+
     p_corpus = sub.add_parser("corpus", help="build a train/test manifest from a directory")
     p_corpus.add_argument("root")
     p_corpus.add_argument("--out", default="results/corpus_manifest.json")
@@ -467,12 +603,15 @@ def build_parser() -> argparse.ArgumentParser:
         "names the wrong corpus is worse than no manifest",
     )
     p_corpus.add_argument("--license", default="mixed CC BY-NC-SA, academic use")
+    p_corpus.add_argument("--min-duration", type=float, default=10.0)
     p_corpus.set_defaults(func=_cmd_corpus)
 
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    from evals.fetch import FetchError
+
     from headroom.agent.cassette import CassetteMissError
     from headroom.agent.client import ModelError
 
@@ -486,6 +625,11 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"no recording for this request.\n{exc.args[0]}\n")
         return 2
     except ModelError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    except FetchError as exc:
+        # A missing ffmpeg or a digest mismatch is a fact about the machine or
+        # the network, not a defect worth a traceback.
         sys.stderr.write(f"{exc}\n")
         return 2
     return result
