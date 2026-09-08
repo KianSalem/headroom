@@ -1,0 +1,139 @@
+### Overall
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 54 | +0.996 | +0.919 to +1.000 | 67% | 11% | 0% | 2 | 1.0 | $0.0000 |
+| heuristic | 54 | +0.962 | +0.878 to +1.000 | 67% | 13% | 0% | 3 | 1.5 | $0.0000 |
+| hillclimb | 54 | +0.003 | +0.000 to +0.062 | 0% | 57% | 0% | 6 | 1.6 | $0.0000 |
+| random | 54 | +0.000 | +0.000 to +0.019 | 0% | 69% | 0% | 6 | 3.1 | $0.0000 |
+| null | 54 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### band_shift
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| heuristic | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| hillclimb | 6 | +0.000 | +0.000 to +0.022 | 0% | 33% | 0% | 6 | 1.4 | $0.0000 |
+| random | 6 | +0.000 | +0.000 to +0.021 | 0% | 67% | 0% | 6 | 3.3 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### combo
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| heuristic | 6 | +0.961 | +0.959 to +0.961 | 100% | 0% | 0% | 3 | 1.4 | $0.0000 |
+| random | 6 | +0.008 | +0.000 to +0.018 | 0% | 50% | 0% | 6 | 3.2 | $0.0000 |
+| hillclimb | 6 | +0.005 | +0.000 to +0.017 | 0% | 67% | 0% | 6 | 1.4 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### level_offset
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 1 | 0.5 | $0.0000 |
+| heuristic | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 1 | 0.5 | $0.0000 |
+| hillclimb | 6 | +0.441 | +0.366 to +0.478 | 0% | 33% | 0% | 5 | 0.7 | $0.0000 |
+| random | 6 | +0.376 | +0.314 to +0.456 | 0% | 17% | 0% | 5 | 2.7 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### over_compress
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +0.859 | +0.822 to +0.896 | 0% | 100% | 0% | 6 | 3.0 | $0.0000 |
+| heuristic | 6 | +0.855 | +0.817 to +0.890 | 0% | 100% | 0% | 6 | 3.0 | $0.0000 |
+| hillclimb | 6 | +0.029 | +0.000 to +0.060 | 0% | 100% | 0% | 8 | 2.4 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+| random | 6 | +0.000 | +0.000 to +0.000 | 0% | 100% | 0% | 5 | 2.2 | $0.0000 |
+
+### over_expand
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| heuristic | 6 | +0.825 | +0.812 to +0.851 | 0% | 17% | 0% | 6 | 3.1 | $0.0000 |
+| agent-scaffold | 6 | +0.783 | +0.732 to +0.824 | 0% | 0% | 0% | 6 | 3.0 | $0.0000 |
+| hillclimb | 6 | +0.088 | +0.031 to +0.090 | 0% | 67% | 0% | 10 | 3.6 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+| random | 6 | +0.000 | +0.000 to +0.002 | 0% | 100% | 0% | 7 | 3.1 | $0.0000 |
+
+### resonant_peak
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| heuristic | 6 | +0.951 | +0.945 to +0.964 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| agent-scaffold | 6 | +0.951 | +0.945 to +0.964 | 100% | 0% | 0% | 2 | 0.9 | $0.0000 |
+| hillclimb | 6 | +0.001 | +0.000 to +0.006 | 0% | 83% | 0% | 6 | 1.7 | $0.0000 |
+| random | 6 | +0.001 | +0.000 to +0.006 | 0% | 83% | 0% | 7 | 3.6 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### spectral_tilt
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +0.907 | +0.897 to +0.927 | 0% | 0% | 0% | 3 | 1.5 | $0.0000 |
+| heuristic | 6 | +0.850 | +0.844 to +0.868 | 0% | 0% | 0% | 14 | 6.6 | $0.0000 |
+| hillclimb | 6 | +0.000 | +0.000 to +0.000 | 0% | 50% | 0% | 6 | 1.9 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+| random | 6 | +0.000 | +0.000 to +0.000 | 0% | 83% | 0% | 6 | 2.7 | $0.0000 |
+
+### stereo_collapse
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| agent-scaffold | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| heuristic | 6 | +0.990 | +0.990 to +0.990 | 100% | 0% | 0% | 3 | 1.5 | $0.0000 |
+| hillclimb | 6 | +0.000 | +0.000 to +0.000 | 0% | 67% | 0% | 6 | 1.5 | $0.0000 |
+| random | 6 | +0.000 | +0.000 to +0.000 | 0% | 83% | 0% | 6 | 3.1 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### stereo_overwide
+
+| system | n | recovery (median) | IQR | converged | oscillated | regressed | renders | wall s | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| heuristic | 6 | +1.000 | +1.000 to +1.000 | 100% | 0% | 0% | 6 | 2.8 | $0.0000 |
+| agent-scaffold | 6 | +0.996 | +0.989 to +1.000 | 100% | 0% | 0% | 2 | 1.0 | $0.0000 |
+| random | 6 | +0.006 | +0.000 to +0.017 | 0% | 33% | 0% | 6 | 3.0 | $0.0000 |
+| hillclimb | 6 | +0.006 | +0.000 to +0.017 | 0% | 17% | 0% | 5 | 0.7 | $0.0000 |
+| null | 6 | +0.000 | +0.000 to +0.000 | 0% | 0% | 0% | 0 | 0.0 | $0.0000 |
+
+### Abort reasons
+
+| reason | count |
+|---|---|
+| no_improvement | 156 |
+| diverged | 33 |
+| max_steps | 6 |
+| oscillation_unresolved | 3 |
+
+_270 traces, git 8ae36ec, config 9a9ee3667fe018b0_
+
+### Paired against `heuristic`
+
+Same track, degradation and seed for both systems, so differences are per-cell rather than marginal.
+
+| system | n | median difference | wins | losses | ties | signed-rank p |
+|---|---|---|---|---|---|---|
+| agent-scaffold | 54 | +0.000 | 26 | 13 | 15 | 0.0280 |
+| hillclimb | 54 | -0.935 | 0 | 54 | 0 | 0.0000 |
+| null | 54 | -0.962 | 0 | 54 | 0 | 0.0000 |
+| random | 54 | -0.940 | 0 | 54 | 0 | 0.0000 |
+
+### Specialists
+
+One turn is one render, however many edits the specialist bundled into it. `edits/turn` above 1.00 is the coordinated-edit claim actually happening; a low hit rate on a frequently-consulted role is a routing problem rather than a prompt problem.
+
+**`agent-scaffold`**
+
+| specialist | turns | edits | edits/turn | helped | hit rate |
+|---|---|---|---|---|---|
+| loudness | 57 | 68 | 1.19 | 54 | 95% |
+| eq | 47 | 106 | 2.26 | 46 | 98% |
+| stereo | 43 | 203 | 4.72 | 41 | 95% |
+| dynamics | 12 | 14 | 1.17 | 0 | 0% |
+
+
+### Cost
+
+$0.0000. Every system in this table is arithmetic, and no API call was made to produce it.
