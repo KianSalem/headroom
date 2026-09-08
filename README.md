@@ -155,45 +155,84 @@ run.
 
 ## Results
 
-Test split, 18 paired cells, 14-render budget for every system, `claude-haiku-4-5` for the
-agent. Full tables sliced by degradation type, the paired tests, the per-specialist
-breakdown and the measured spend are in [`results/RESULTS.md`](results/RESULTS.md), and
-every number is recomputable from the traces committed beside it.
+The headline is on **real music** — six MUSDB18 test tracks, 54 paired cells, one seed,
+14-render budget for every system, `claude-haiku-4-5` for the agent. Not one cell was
+skipped for a weak degradation, which was not true of the synthetic corpus. Fetch the same
+corpus with `headroom fetch-corpus`; full tables, the paired tests, the per-specialist
+breakdown and the measured spend are in
+[`results/RESULTS-musdb18-7s.md`](results/RESULTS-musdb18-7s.md).
 
 | system | recovery (median) | IQR | converged | oscillated | renders | cost |
 |---|---|---|---|---|---|---|
-| `optimizer` *(measured bound)* | +1.000 | +0.990 to +1.000 | 94% | 0% | 90 | $0 |
-| **`agent-scaffold`** | **+0.999** | +0.988 to +1.000 | **89%** | 6% | **2** | **$0** |
-| `heuristic` | +0.995 | +0.951 to +1.000 | 72% | 6% | 4 | $0 |
-| `agent` *(Haiku 4.5)* | +0.913 | +0.881 to +0.997 | 44% | 28% | 4 | $0.386 |
-| `random` | +0.000 | +0.000 to +0.022 | 0% | 67% | 6 | $0 |
-| `hillclimb` | +0.000 | +0.000 to +0.039 | 0% | 89% | 6 | $0 |
+| **`agent-scaffold`** | **+0.996** | +0.919 to +1.000 | **67%** | **11%** | **2** | **$0** |
+| `heuristic` | +0.962 | +0.878 to +1.000 | 67% | 13% | 3 | $0 |
+| `agent` *(Haiku 4.5)* | +0.920 | +0.779 to +1.000 | 44% | 30% | 4 | $1.27 |
+| `hillclimb` | +0.003 | +0.000 to +0.062 | 0% | 57% | 6 | $0 |
+| `random` | +0.000 | +0.000 to +0.019 | 0% | 69% | 6 | $0 |
 | `null` | +0.000 | +0.000 to +0.000 | 0% | 0% | 0 | $0 |
 
-Paired against the heuristic, Wilcoxon signed-rank on the same 18 cells:
+Paired against the heuristic, Wilcoxon signed-rank on the same 54 cells. **Both directions
+are significant, and they point opposite ways:**
 
 | system | median difference | wins | losses | ties | p |
 |---|---|---|---|---|---|
-| `agent-scaffold` | +0.000 | 8 | 3 | 7 | 0.120 |
-| `agent` | −0.060 | 3 | 11 | 4 | **0.025** |
-| `optimizer` | +0.000 | 8 | 0 | 10 | 0.010 |
-| `random` / `hillclimb` / `null` | −0.95 | 0 | 18 | 0 | ≤0.0002 |
+| `agent-scaffold` | +0.000 | 26 | 13 | 15 | **0.028** |
+| `agent` | +0.000 | 18 | 26 | 10 | **0.032** |
+| `random` / `hillclimb` / `null` | −0.94 | 0 | 54 | 0 | ≤0.0001 |
+
+### The control that makes that mean something
+
+Run on real music the architecture beats the heuristic significantly; run on synthetic audio
+it does not. That difference is the result, so it needs the rest held still. Same six-track
+count, same 6.8 s clips, same 54 cells, same seed, same five systems — only the material
+differs ([`results/RESULTS-synth-control.md`](results/RESULTS-synth-control.md)):
+
+| corpus | `agent-scaffold` | `heuristic` | wins | losses | ties | p |
+|---|---|---|---|---|---|---|
+| synthetic | +1.000 | +0.994 | 19 | 14 | 21 | 0.230 |
+| **real music** | +0.996 | +0.962 | 26 | 13 | 15 | **0.028** |
+
+**The mechanism is in the ties, not the wins: 21 against 15.** Synthetic material is easy
+enough that both systems finish at recovery 1.000 on most cells, and two systems that both
+saturate cannot be told apart no matter how many cells you add. Real music leaves headroom —
+the heuristic drops from +0.994 to +0.962, convergence from 74% to 67% — and that extra
+difficulty is what makes the difference measurable. `headroom corpus-stats` says why the
+material is harder: spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39 dB/oct,
+percussive ratio 0.025 against 0.287, and at 20 s clips a loudness range of 0.04 LU against
+2.34.
+
+This also corrected a prediction this README used to make. It said real music would *widen*
+the coupling the architecture exploits. The per-kind margins did the opposite and collapsed
+— `spectral_tilt` +0.290 → +0.057, `over_compress` +0.148 → +0.004. What grew was breadth,
+not size: on synthetic the architecture won heavily on two kinds and tied everywhere else,
+which n=18 could not resolve; on real music it wins slightly on most kinds, which 54 cells
+can. Broader and shallower.
 
 ### What that says
 
-**The architecture earns its keep, on the cases where it should.** The scaffold is the same
+**The architecture earns its keep, and only real music shows it.** The scaffold is the same
 supervisor, tool layer, memory and critic as the agent, with the heuristic's own correction
 constants imported rather than copied — so it differs from the heuristic in exactly one
-respect, that it may make several coordinated edits per render. It converges on 89% of cells
-against 72%, in a median 2 renders against 4, and the gap is concentrated exactly where
-coupling exists: `spectral_tilt` +0.985 against +0.695, `over_compress` +0.981 against
-+0.833. On both it ties the optimizer bound. Across all cells the recovery difference is not
-significant at n=18 (p=0.120), and that is the honest reading.
+respect, that it may make several coordinated edits per render. That claim is visible in the
+traces as `edits/turn`, which reaches 4.72 on the stereo role. It converges in a median 2
+renders against 3, oscillates on 11% of cells against 13%, and wins twice as often as it
+loses (p=0.028).
 
-**The model does not, on a numeric target.** The identical architecture with Haiku 4.5 in
-place of the arithmetic is *significantly worse* than the heuristic: 3 wins against 11
-losses, p=0.025, 44% convergence, 28% oscillation, and $0.386. Its specialists have hit
-rates of 25–88% where the scaffold's are 78–100%. The mechanism is visible in the traces: a
+**The model does not — but its failure is variance, not incompetence.** The identical
+architecture with Haiku 4.5 in place of the arithmetic is *significantly worse* than the
+heuristic: 18 wins against 26 losses, p=0.032, 44% convergence, 30% oscillation, $1.27. The
+median hides what is actually happening, which the per-kind table shows:
+
+| kind | `heuristic` | `agent-scaffold` | `agent` |
+|---|---|---|---|
+| `spectral_tilt` | +0.850 | +0.907 | **+0.958** |
+| `over_expand` | +0.825 | +0.783 | **+0.844** |
+| `combo` | +0.961 | **+1.000** | +0.247 |
+| `stereo_collapse` | +0.990 | **+1.000** | +0.334 |
+
+The model is the *best* system on two of nine degradation kinds and catastrophic on two
+others. It consults its specialists 226 turns against the scaffold's 159, at hit rates of
+52–96% where the scaffold's are 95–98%. The mechanism is visible in the traces: a
 deterministic controller has its step size **imposed** by the critic, which multiplies every
 correction by the damping factor, while a model is only **told** the factor — and only after
 oscillation has already been detected. Persuasion is a worse actuator than multiplication.
@@ -202,6 +241,15 @@ oscillation has already been detected. Persuasion is a worse actuator than multi
 slightly worse recovery (+0.764 against +0.799), spending 2.6× the output tokens and holding
 one specialist for seven straight renders. This task is arithmetic over a six-row table; it
 does not reward a larger model.
+
+### The synthetic table, for comparison
+
+The original run — 18 cells, 20 s clips, two test tracks, and a multi-start Powell optimizer
+as a measured bound — is in [`results/RESULTS.md`](results/RESULTS.md). There the scaffold
+reached +0.999 against the heuristic's +0.995 (p=0.120, not significant at n=18) and the
+agent +0.913 (p=0.025, significantly worse). The real-music run reproduces the model result
+on different material and at three times the cell count, and turns the architecture result
+from suggestive into significant.
 
 ### Where the model does win
 
@@ -227,12 +275,31 @@ reads intent at 94%, and arithmetic closes the loop better than the model does, 
 
 ### Caveats that matter
 
-The corpus here is `headroom synth-corpus` — six stationary synthetic tracks — and the
-degradations are built from the same op vocabulary used to repair them. That is the easiest
-possible case, and it flatters every deterministic system in the table, because a
-proportional controller inverting a known op is close to solving the problem analytically.
-Real music should widen the coupling the architecture exploits and narrow the advantage
-arithmetic has. n=18 is small; the significant results are the large ones.
+**The degradations come from the same op vocabulary used to repair them.** Real music fixes
+the *material*, not the task: a controller still knows the damage was reachable by ops it
+owns. A degradation drawn from outside the vocabulary — a bad room, a codec, a bass player
+having a bad day — is the harder test and is not run here.
+
+**The clips are 6.8 s, which is too short to measure loudness range on.** `lra` is built
+from 3 s windows on a 1 s hop, so a 6.8 s clip gives about four of them and K-weighting
+settling dominates the percentiles — a held sine tone measures 0.94 LU this way. That
+weakens exactly one of 28 dimensions, but it is the one the dynamics role turns on, and
+`over_compress` and `over_expand` are where the systems are closest. A 20 s run on the same
+six tracks, where `lra` is 2.34 LU rather than an artefact, is the obvious next
+measurement; `headroom fetch-corpus --archive musdb18` is the whole setup.
+
+**n=54 from six tracks is still small, and one seed.** Nine degradation kinds mean six cells
+per kind, so the per-kind column is indicative and the overall paired test is the number to
+read. Both significant results sit near p=0.03, which is not a large margin.
+
+**No optimizer bound on the real-music run.** The synthetic table has a multi-start Powell
+optimizer saying what was reachable at all; at 250 renders a cell it was too slow to add
+here in time. `recovery_ratio` is self-contained — `1 − final/initial` — so the table is
+readable without it, but "+0.996 of what was possible" is not a claim this run can make.
+
+**Real-music audio is not published.** MUSDB18's licence is non-commercial with per-track
+terms, so results are numbers only, with no listening page. The synthetic showcase in
+[`results/report`](results/report) is what can be hosted.
 
 ## Honesty machinery
 
@@ -270,24 +337,25 @@ Every API call is recorded to a cassette committed in [`cassettes/`](cassettes/)
 agent row reproduces at zero cost and with no key. That is verified rather than claimed:
 
 ```
-$ ANTHROPIC_API_KEY="" HEADROOM_CASSETTE_MODE=replay headroom eval --systems agent
-18 traces, 0 cells skipped, 18/18 fully replayed,
-recorded cost $0.3857, actual spend $0.0000
-recovery mismatches against the committed traces: none — identical
+$ ANTHROPIC_API_KEY="" HEADROOM_CASSETTE_MODE=replay \
+    headroom eval --manifest results/corpus_manifest_musdb18_7s.json --systems agent
+54 traces, 0 cells skipped, 54/54 fully replayed
+345 cassette hits, 0 misses, actual spend $0.0000 (recorded cost $1.2717)
+recovery mismatches against the committed traces: 0 of 54 — bit-identical
 ```
 
 The cassettes are the API traffic verbatim, which makes the directory a readable record of
-every prompt the system has ever sent — and means a test asserts across all 159 of them that
+every prompt the system has ever sent — and means a test asserts across all 510 of them that
 none carries a credential, that each one's key matches its own request, and that the recorded
 tool calls still apply to a chain today. In CI, replay mode turns "the prompt changed and
 nobody re-recorded" into a failing test rather than an unexpected bill.
 
-Six of the seven systems are pure arithmetic and `headroom eval` defaults to exactly those,
-so a fresh clone gets a full results table with no credential at all. The corpus is public
-([MUSDB18-HQ](https://zenodo.org/record/3338373)); `headroom synth-corpus` generates a
-deterministic synthetic corpus so the pipeline runs with no download, and the manifest stores
-track paths relative to itself so a committed manifest is portable rather than carrying one
-machine's directory layout.
+Five of the six systems in the table are pure arithmetic and `headroom eval` defaults to
+exactly those, so a fresh clone gets a full results table with no credential at all. The
+corpus is public and fetched by one command that pins it to the digest Zenodo publishes;
+`headroom synth-corpus` generates a deterministic synthetic corpus so the pipeline runs with
+no download at all, and the manifest stores track paths relative to itself so a committed
+manifest is portable rather than carrying one machine's directory layout.
 
 ## The measurement core
 
@@ -404,7 +472,7 @@ true_peak_dbtp        -4.014 <=    -1.000 dBTP   delta  -3.014  -10.05 tol  ->
 | `src/headroom/control/` | the shared loop and the deterministic critic |
 | `src/headroom/baselines/` | heuristic, optimizer bound, random and hillclimb floors |
 | `src/headroom/agent/` | roles, tools, briefing, memory, supervisor, model boundary |
-| `evals/` | corpus, degradations, runner, aggregation, HTML report |
+| `evals/` | corpus fetch and split, degradations, runner, aggregation, HTML report |
 
 `src/headroom/agent/__init__.py` names the reading order for the agent package.
 

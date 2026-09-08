@@ -205,34 +205,45 @@ Three things that cost real time and are worth writing down:
 of this table did not hold clip length constant and got a result badly wrong
 — see below.
 
-| | synthetic | real music | robust? |
-|---|---|---|---|
-| `spectral_flatness` | 0.273 | **0.004** | yes, 68× |
-| `spectral_centroid` | 3213 Hz | 752 Hz | yes |
-| `spectral_tilt` | −0.43 dB/oct | **−5.34 dB/oct** | yes |
-| `percussive_ratio` | 0.025 | **0.255** | yes, 10× |
-| `attack_time_p50` | 9.5 ms | 20.2 ms | yes |
-| `plr` | 9.54 dB | 12.92 dB | yes |
-| `mono_compat_db` | −2.72 dB | −0.86 dB | yes |
-| `correlation` | +0.48 (−0.50 … +0.96) | +0.70 (+0.49 … +0.89) | yes |
-| `lra` | 1.74 LU | 1.97 LU | **no — see below** |
+Six tracks each, reported at both clip lengths the evaluation uses, because
+one row behaves completely differently at the two:
 
-So the real difference is **spectrum and transients**, not loudness movement:
-synthetic material is noise-like where music is tonal, nearly flat where music
-falls 5 dB per octave, and carries a tenth of the transient energy. One
-synthetic track has *negative* stereo correlation, which no mix would. A
-proportional controller inverting a known op on a signal like that is close to
-solving the problem analytically, which is why every deterministic system in
-the table does well on it.
+| | synth @20s | real @20s | synth @6.8s | real @6.8s |
+|---|---|---|---|---|
+| `spectral_flatness` | 0.274 | **0.004** | 0.273 | 0.004 |
+| `spectral_centroid` | 3219 Hz | 709 Hz | 3213 Hz | 752 Hz |
+| `spectral_tilt` | −0.43 dB/oct | **−5.39 dB/oct** | −0.43 | −5.34 |
+| `percussive_ratio` | 0.025 | **0.287** | 0.025 | 0.255 |
+| `attack_time_p50` | 8.3 ms | 18.5 ms | 9.5 | 20.2 |
+| `plr` | 9.71 dB | 14.82 dB | 9.54 | 12.92 |
+| `mono_compat_db` | −2.72 dB | −0.76 dB | −2.72 | −0.86 |
+| `correlation` | +0.48 | +0.73 | +0.48 | +0.70 |
+| `lra` | **0.04 LU** | **2.34 LU** | 1.74 | 1.97 |
+
+Every row except the last says the same thing at either clip length: synthetic
+material is noise-like where music is tonal, nearly flat where music falls 5 dB
+per octave, and carries a tenth of the transient energy. One synthetic track
+has *negative* stereo correlation, which no mix would. A proportional
+controller inverting a known op on a signal like that is close to solving the
+problem analytically, which is why every deterministic system does well on it.
+
+`lra` is the exception, and it is the interesting one. At 20 s the synthetic
+corpus is **63× more stationary** than real music — 0.04 LU against 2.34, with
+one real track at 6.37. At 6.8 s that difference vanishes into the noise:
+1.74 against 1.97. The audio did not change; the measurement stopped being
+able to resolve it.
 
 ### A number this document got wrong, and why
 
 An earlier version of the table above claimed the synthetic corpus was **65×
 more stationary** than real music: `lra` 0.03 LU against 1.96 LU. That
-comparison was invalid. The synthetic figure was measured on 20 s clips and
-the real one on 6.8 s clips, so it conflated the material with the clip
-length. Measured properly — same six-track count, same 6.8 s — it is 1.74
-against 1.97, which is no meaningful difference at all.
+comparison was invalid — not because the conclusion was wrong, but because
+nothing in it was controlled. The synthetic figure was measured on 20 s clips
+and the real one on 6.8 s clips, so it was as much a measurement of window
+count as of material. Held at 6.8 s it is 1.74 against 1.97, no difference
+worth reporting; held at 20 s it is 0.04 against 2.34, a factor of 63. The
+right answer happened to be close to the number originally quoted, which is
+the least reassuring way to be right.
 
 The cause is worth knowing, because it is a property of the measurement rather
 than of the audio. `lra` is built from 3 s short-term windows on a 1 s hop, and
