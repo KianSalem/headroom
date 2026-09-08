@@ -271,6 +271,51 @@ is non-commercial.
 
 Recorded here because the point of the evaluation was to be able to be wrong.
 
+### On real music, 54 paired cells
+
+**The architecture beats the heuristic, significantly.** `agent-scaffold`
+against `heuristic`: 26 wins, 13 losses, 15 ties, signed-rank p=0.0280,
+median recovery +0.996 against +0.962, a median 2 renders against 3.
+
+**And that only shows up on real music.** The matched control — same six-track
+count, same 6.8 s clips, same 54 cells, same seed, same systems, synthetic
+material — gives 19 wins, 14 losses, 21 ties, p=0.2302. The difference between
+the two is the material and nothing else.
+
+**The mechanism is the ties, not the wins**: 21 against 15. Synthetic audio is
+easy enough that both systems finish at recovery 1.000 on most cells, and two
+systems that both saturate cannot be separated at any n. Real music leaves
+headroom — the heuristic falls from +0.994 to +0.962, convergence from 74% to
+67% — and that headroom is what makes the difference measurable. Adding cells
+to the synthetic corpus would not have found this; changing the material did.
+
+**A prediction this document made, and got half wrong.** It said real music
+would *widen* the coupling the architecture exploits. The per-kind margins did
+the opposite and collapsed: `spectral_tilt` +0.290 → +0.057, `over_compress`
++0.148 → +0.004. What grew was breadth, not depth — small wins on most kinds
+instead of large wins on two. The conclusion held; the stated reason for it
+did not.
+
+**The model's failure mode is variance, not incompetence.** `agent` against
+`heuristic` on the same cells: 18 wins, 26 losses, p=0.0319 — significantly
+worse, replicating the synthetic result on different material. But the median
+is the wrong summary. Per kind it is the *best* of the three systems on two of
+nine, and catastrophic on two others:
+
+| kind | `heuristic` | `agent-scaffold` | `agent` |
+|---|---|---|---|
+| `spectral_tilt` | +0.850 | +0.907 | **+0.958** |
+| `over_expand` | +0.825 | +0.783 | **+0.844** |
+| `combo` | +0.961 | **+1.000** | +0.247 |
+| `stereo_collapse` | +0.990 | **+1.000** | +0.334 |
+
+It wins where one coherent spectral judgement is enough, and collapses where
+several coupled features have to be balanced at once — 30% oscillation against
+the scaffold's 11%, and 226 specialist turns against 159 at hit rates of
+52–96% where the scaffold's are 95–98%.
+
+### On the synthetic corpus, 18 paired cells, 20 s clips
+
 **The architecture beats the heuristic where coupling exists, and the
 difference is not significant overall.** `agent-scaffold` converges on 89% of
 cells against 72% in a median 2 renders against 4, and the gap concentrates on
@@ -300,13 +345,28 @@ the heuristic could decline to retry a failed direction, the architecture won
 at p=0.030; afterwards, p=0.120. The earlier number was an artefact of a
 strawman.
 
-The corpus is synthetic and stationary and the degradations are built from the
-same op vocabulary used to repair them, which is the easiest possible case and
-flatters every deterministic system. n=18 is small.
+### What none of it supports
+
+The degradations are still built from the same op vocabulary used to repair
+them, on both corpora. Real music fixes the material, not the task: a
+controller still knows the damage was reachable by ops it owns. Damage from
+outside the vocabulary — a bad room, a codec, a bass player having a bad day —
+is the harder test and is not run.
+
+The real-music clips are 6.8 s, which is too short to measure `lra` on, and
+`lra` is what the dynamics role turns on. Six tracks and one seed is 54 cells;
+both significant results sit near p=0.03, which is not a large margin. The
+real-music run has no optimizer bound, so "+0.996" is not yet "+0.996 of what
+was reachable".
 
 ## Cost
 
-The agent evaluation is engineered to run for a few dollars.
+The agent evaluation is engineered to run for a few dollars. Total spend to
+produce everything in this repository: **about $2.13**, against a $4.95
+allowance. The two agent evaluation rows are $0.386 (synthetic, 18 cells) and
+$1.272 (real music, 54 cells); the rest is probes, the Sonnet comparison, the
+brief translations, and the README demo. Every one of those calls is committed
+as a cassette, so reproducing all of it costs nothing.
 
 - **Record/replay cassettes.** Every API call is recorded on first run and
   replayed at zero cost afterwards. Cassettes are committed, so development
@@ -317,6 +377,12 @@ The agent evaluation is engineered to run for a few dollars.
   the optimizer ceiling and the agent scaffold are pure arithmetic. `headroom
   eval` defaults to exactly those, so a fresh clone reproduces a full results
   table with no credential.
+- **The controls were free, which is why they got run.** The result that the
+  architecture's advantage is material-dependent rests on a 54-cell synthetic
+  re-run at a matched clip length, and on a second real-music run at 20 s. Both
+  are pure arithmetic and cost nothing, so the honest version of the experiment
+  was never competing with the budget. Only the model rows cost money, and
+  neither control needed one.
 - Agent runs default to **Haiku 4.5**, and that is a measured choice rather
   than a budget concession. On the same cell Sonnet 5 cost 3.2x as much
   ($0.098 against $0.031) for slightly *worse* recovery (+0.764 against
