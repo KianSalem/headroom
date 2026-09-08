@@ -208,6 +208,34 @@ not size: on synthetic the architecture won heavily on two kinds and tied everyw
 which n=18 could not resolve; on real music it wins slightly on most kinds, which 54 cells
 can. Broader and shallower.
 
+### Robustness: the same six tracks at 20 s
+
+6.8 s is too short to measure loudness range on, so the whole thing was re-run
+on 20 s clips of the same six tracks, where `lra` is 2.34 LU of real movement rather than
+four windows of filter settling
+([`results/RESULTS-musdb18-20s.md`](results/RESULTS-musdb18-20s.md)). The result
+strengthens:
+
+| clips | `agent-scaffold` | `heuristic` | oscillated | wins | losses | ties | p |
+|---|---|---|---|---|---|---|---|
+| 6.8 s | +0.996 | +0.962 | 11% vs 13% | 26 | 13 | 15 | 0.028 |
+| **20 s** | +0.991 | +0.959 | **6% vs 11%** | 27 | 15 | 12 | **0.010** |
+
+More useful than the p-value: **the one kind where the architecture looked worse than the
+heuristic turns out to have been an artefact of the short clip.**
+
+| kind | Δ at 6.8 s | Δ at 20 s |
+|---|---|---|
+| `over_expand` | **−0.043** | **+0.034** |
+| `over_compress` | +0.004 | +0.017 |
+| every other kind | — | within 0.01 of its 6.8 s value |
+
+The sign flips, and the two dynamics degradations are the *only* two that move at all. That
+is what the caveat above predicted: `lra` is what the dynamics role turns on, 6.8 s cannot
+measure it, and those two kinds are where the systems sit closest. Both systems also get
+absolutely worse on dynamics once the material has real loudness movement to track
+(`over_expand` +0.825 → +0.696), which is the honest direction for that to move.
+
 ### What that says
 
 **The architecture earns its keep, and only real music shows it.** The scaffold is the same
@@ -280,13 +308,12 @@ the *material*, not the task: a controller still knows the damage was reachable 
 owns. A degradation drawn from outside the vocabulary — a bad room, a codec, a bass player
 having a bad day — is the harder test and is not run here.
 
-**The clips are 6.8 s, which is too short to measure loudness range on.** `lra` is built
-from 3 s windows on a 1 s hop, so a 6.8 s clip gives about four of them and K-weighting
-settling dominates the percentiles — a held sine tone measures 0.94 LU this way. That
-weakens exactly one of 28 dimensions, but it is the one the dynamics role turns on, and
-`over_compress` and `over_expand` are where the systems are closest. A 20 s run on the same
-six tracks, where `lra` is 2.34 LU rather than an artefact, is the obvious next
-measurement; `headroom fetch-corpus --archive musdb18` is the whole setup.
+**The headline clips are 6.8 s, which is too short to measure loudness range on.** `lra` is
+built from 3 s windows on a 1 s hop, so a 6.8 s clip gives about four of them and
+K-weighting settling dominates the percentiles — a held sine tone measures 0.94 LU this way.
+That weakens exactly one of 28 dimensions, but it is the one the dynamics role turns on.
+This one is measured rather than left hanging: the 20 s re-run below shows it changes the
+two dynamics kinds and nothing else.
 
 **n=54 from six tracks is still small, and one seed.** Nine degradation kinds mean six cells
 per kind, so the per-kind column is indicative and the overall paired test is the number to
