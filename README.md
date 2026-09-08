@@ -180,33 +180,44 @@ are significant, and they point opposite ways:**
 | `agent` | +0.000 | 18 | 26 | 10 | **0.032** |
 | `random` / `hillclimb` / `null` | −0.94 | 0 | 54 | 0 | ≤0.0001 |
 
-### The control that makes that mean something
+### The controls, and a claim they cut down
 
-Run on real music the architecture beats the heuristic significantly; run on synthetic audio
-it does not. That difference is the result, so it needs the rest held still. Same six-track
-count, same 6.8 s clips, same 54 cells, same seed, same five systems — only the material
-differs ([`results/RESULTS-synth-control.md`](results/RESULTS-synth-control.md)):
+The architecture beating the heuristic is only interesting if it survives holding everything
+else still. So the same comparison was run in four conditions — two corpora × two clip
+lengths, 54 cells each, same six-track count, same seed, same systems. The controls are pure
+arithmetic, so all of this cost nothing.
 
-| corpus | `agent-scaffold` | `heuristic` | wins | losses | ties | p |
-|---|---|---|---|---|---|---|
-| synthetic | +1.000 | +0.994 | 19 | 14 | 21 | 0.230 |
-| **real music** | +0.996 | +0.962 | 26 | 13 | 15 | **0.028** |
+| corpus | clips | `agent-scaffold` | `heuristic` | gap | wins | losses | ties | p |
+|---|---|---|---|---|---|---|---|---|
+| synthetic | 6.8 s | +1.000 | +0.994 | 0.006 | 19 | 14 | 21 | 0.230 |
+| synthetic | 20 s | +0.999 | +0.991 | 0.008 | 21 | 9 | 24 | **0.047** |
+| real music | 6.8 s | +0.996 | +0.962 | **0.034** | 26 | 13 | 15 | **0.028** |
+| **real music** | **20 s** | **+0.991** | **+0.959** | **0.032** | 27 | 15 | 12 | **0.010** |
 
-**The mechanism is in the ties, not the wins: 21 against 15.** Synthetic material is easy
-enough that both systems finish at recovery 1.000 on most cells, and two systems that both
-saturate cannot be told apart no matter how many cells you add. Real music leaves headroom —
-the heuristic drops from +0.994 to +0.962, convergence from 74% to 67% — and that extra
-difficulty is what makes the difference measurable. `headroom corpus-stats` says why the
-material is harder: spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39 dB/oct,
-percussive ratio 0.025 against 0.287, and at 20 s clips a loudness range of 0.04 LU against
-2.34.
+**This killed a stronger claim.** With only the 6.8 s row in hand it looked like the
+advantage appeared *only* on real music. It does not: synthetic material at 20 s is also
+significant at p=0.047. The defensible reading is about **effect size, not significance** —
+the median gap is roughly five times larger on real music, 0.033 against 0.007, consistently
+at both clip lengths. Real music does not create the advantage; it makes it large enough to
+be worth caring about.
+
+**And the original null result was mostly a sample-size problem.** The first synthetic run
+reported p=0.120 and was read as "not significant". The identical condition at 54 cells
+instead of 18 gives p=0.047. n=18 could not have resolved an 0.008 gap, and saying so is
+more honest than the material story alone.
+
+What the ties show is why the synthetic corpus is a poor instrument regardless: 21 and 24 of
+54 cells are exact ties, because both systems finish at recovery 1.000 on material easy
+enough to saturate them. Real music leaves headroom — the heuristic drops to +0.959,
+convergence from 76% to 67% — and 12 ties instead of 24. `headroom corpus-stats` says why
+the material is harder: spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39
+dB/oct, percussive ratio 0.025 against 0.287, loudness range 0.04 LU against 2.34.
 
 This also corrected a prediction this README used to make. It said real music would *widen*
-the coupling the architecture exploits. The per-kind margins did the opposite and collapsed
-— `spectral_tilt` +0.290 → +0.057, `over_compress` +0.148 → +0.004. What grew was breadth,
-not size: on synthetic the architecture won heavily on two kinds and tied everywhere else,
-which n=18 could not resolve; on real music it wins slightly on most kinds, which 54 cells
-can. Broader and shallower.
+the coupling the architecture exploits. Per kind the margins collapsed instead —
+`spectral_tilt` +0.290 → +0.057, `over_compress` +0.148 → +0.004. What grew was breadth, not
+depth: on synthetic the architecture won heavily on two kinds and tied everywhere else; on
+real music it wins slightly on most kinds. Broader and shallower.
 
 ### Robustness: the same six tracks at 20 s
 

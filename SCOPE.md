@@ -277,17 +277,34 @@ Recorded here because the point of the evaluation was to be able to be wrong.
 against `heuristic`: 26 wins, 13 losses, 15 ties, signed-rank p=0.0280,
 median recovery +0.996 against +0.962, a median 2 renders against 3.
 
-**And that only shows up on real music.** The matched control — same six-track
-count, same 6.8 s clips, same 54 cells, same seed, same systems, synthetic
-material — gives 19 wins, 14 losses, 21 ties, p=0.2302. The difference between
-the two is the material and nothing else.
+**Four conditions, because one comparison proves nothing.** Two corpora × two
+clip lengths, 54 cells each, same six-track count, same seed, same systems:
 
-**The mechanism is the ties, not the wins**: 21 against 15. Synthetic audio is
-easy enough that both systems finish at recovery 1.000 on most cells, and two
-systems that both saturate cannot be separated at any n. Real music leaves
-headroom — the heuristic falls from +0.994 to +0.962, convergence from 74% to
-67% — and that headroom is what makes the difference measurable. Adding cells
-to the synthetic corpus would not have found this; changing the material did.
+| corpus | clips | scaffold | heuristic | gap | W/L/T | p |
+|---|---|---|---|---|---|---|
+| synthetic | 6.8 s | +1.000 | +0.994 | 0.006 | 19/14/21 | 0.2302 |
+| synthetic | 20 s | +0.999 | +0.991 | 0.008 | 21/9/24 | 0.0470 |
+| real music | 6.8 s | +0.996 | +0.962 | 0.034 | 26/13/15 | 0.0280 |
+| real music | 20 s | +0.991 | +0.959 | 0.032 | 27/15/12 | 0.0101 |
+
+**A claim these controls cut down.** With only the 6.8 s rows it looked like
+the advantage appeared *only* on real music, and this document said so.
+Synthetic at 20 s is also significant, p=0.0470. The surviving claim is about
+**effect size rather than significance**: the median gap is about five times
+larger on real music, 0.033 against 0.007, at both clip lengths. Real music
+does not create the advantage — it makes it big enough to matter.
+
+**The original null was mostly a sample-size problem, not a material one.**
+The first synthetic run reported p=0.120 at 18 cells and was read as "the
+architecture is not significantly better". The identical condition at 54 cells
+gives p=0.0470. An 0.008 gap was never going to be resolvable at n=18, and
+that is a less flattering explanation than the material one, which is why it
+is stated first.
+
+**The synthetic corpus is a poor instrument either way**, and the ties say so:
+21 and 24 of 54 cells are exact ties, because both systems finish at recovery
+1.000 on material easy enough to saturate them. Real music leaves headroom —
+heuristic +0.959, convergence 67% against 76% — and 12 ties instead of 24.
 
 **A prediction this document made, and got half wrong.** It said real music
 would *widen* the coupling the architecture exploits. The per-kind margins did
@@ -377,12 +394,13 @@ as a cassette, so reproducing all of it costs nothing.
   the optimizer ceiling and the agent scaffold are pure arithmetic. `headroom
   eval` defaults to exactly those, so a fresh clone reproduces a full results
   table with no credential.
-- **The controls were free, which is why they got run.** The result that the
-  architecture's advantage is material-dependent rests on a 54-cell synthetic
-  re-run at a matched clip length, and on a second real-music run at 20 s. Both
-  are pure arithmetic and cost nothing, so the honest version of the experiment
-  was never competing with the budget. Only the model rows cost money, and
-  neither control needed one.
+- **The controls were free, which is why they got run — and why one of them
+  cut a claim down.** The four-condition design (two corpora × two clip
+  lengths, 54 cells each) is pure arithmetic and cost nothing, so the honest
+  version of the experiment was never competing with the budget. That mattered:
+  the fourth condition is the one that showed the advantage is not exclusive to
+  real music, and a design that had to be paid for per cell would have been
+  tempting to stop at three.
 - Agent runs default to **Haiku 4.5**, and that is a measured choice rather
   than a budget concession. On the same cell Sonnet 5 cost 3.2x as much
   ($0.098 against $0.031) for slightly *worse* recovery (+0.764 against

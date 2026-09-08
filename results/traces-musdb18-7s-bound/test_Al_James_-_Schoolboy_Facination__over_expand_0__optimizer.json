@@ -1,0 +1,156 @@
+{
+  "trace_schema_version": "2",
+  "system": "optimizer",
+  "track_id": "test/Al_James_-_Schoolboy_Facination",
+  "degradation_kind": "over_expand",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "ratio": 3.092,
+    "threshold_db": -4.981
+  },
+  "degradation_lossy": false,
+  "source_hash": "675bff37890d13da5b53ceead8b226c3",
+  "target_label": "original:test/Al_James_-_Schoolboy_Facination",
+  "target_provenance": "full feature vector",
+  "initial_distance": 6.642811791587858,
+  "final_distance": 0.7121844037369147,
+  "recovery_ratio": 0.8927887126594809,
+  "converged": false,
+  "abort_reason": "max_steps",
+  "final_chain": {
+    "ops": [
+      {
+        "id": "c9f55284",
+        "kind": "gain",
+        "gain_db": 18.0
+      },
+      {
+        "id": "06639b99",
+        "kind": "compressor",
+        "threshold_db": -24.9,
+        "ratio": 1.9,
+        "attack_ms": 80.0,
+        "release_ms": 200.0,
+        "makeup_db": 0.0
+      },
+      {
+        "id": "63273ed7",
+        "kind": "stereo_width",
+        "width": 1.18,
+        "band": 1
+      },
+      {
+        "id": "57952100",
+        "kind": "limiter",
+        "ceiling_dbtp": -2.701,
+        "release_ms": 50.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "c9f55284",
+            "kind": "gain",
+            "gain_db": 18.0
+          },
+          {
+            "id": "06639b99",
+            "kind": "compressor",
+            "threshold_db": -24.9,
+            "ratio": 1.9,
+            "attack_ms": 80.0,
+            "release_ms": 200.0,
+            "makeup_db": 0.0
+          },
+          {
+            "id": "63273ed7",
+            "kind": "stereo_width",
+            "width": 1.18,
+            "band": 1
+          },
+          {
+            "id": "57952100",
+            "kind": "limiter",
+            "ceiling_dbtp": -2.701,
+            "release_ms": 50.0
+          }
+        ]
+      },
+      "chain_fingerprint": "80df76f49b3975cf6a44f86b133fa8f2",
+      "distance_score": 0.7121844037369147,
+      "n_out_of_tolerance": 2,
+      "by_family": {
+        "loudness": 0.0,
+        "dynamics": 0.0,
+        "spectral": 0.489252,
+        "stereo": 0.0,
+        "transient": 0.017954
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "delta": 0.7558,
+          "scaled": 5.0384
+        },
+        {
+          "name": "percussive_logit",
+          "delta": 0.3695,
+          "scaled": 1.8475
+        },
+        {
+          "name": "lufs_integrated",
+          "delta": -0.3985,
+          "scaled": -0.7971
+        },
+        {
+          "name": "true_peak_dbtp",
+          "delta": -0.0001,
+          "scaled": -0.0001
+        },
+        {
+          "name": "lra",
+          "delta": 0.2436,
+          "scaled": 0.2436
+        }
+      ],
+      "action": "powell.3start -5.9306",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "abort",
+      "renders_used": 250,
+      "elapsed_s": 109.3137,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "multi-start Powell, 250 renders, 5 seeded chain(s). Unequal budget by design; every other system gets 14."
+    }
+  ],
+  "n_renders": 250,
+  "wall_time_s": 109.317,
+  "total_cost_usd": 0.0,
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "total_cache_read_tokens": 0,
+  "git_sha": "5068676",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {}
+}
