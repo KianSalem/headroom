@@ -28,7 +28,7 @@ def musical() -> AudioBuffer:
     """Broadband stereo with transients, so every feature family has something
     to measure. Synthetic, but dense enough to be a fair stand-in."""
     rng = np.random.default_rng(3)
-    t = np.arange(SR * 12) / SR
+    t = np.arange(SR * 5) / SR
     bass = 0.18 * np.sin(2 * np.pi * 55 * t)
     mids = 0.10 * np.sin(2 * np.pi * 440 * t) + 0.08 * np.sin(2 * np.pi * 1320 * t)
     tops = 0.05 * rng.standard_normal(t.size)

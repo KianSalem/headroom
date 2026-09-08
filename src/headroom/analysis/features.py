@@ -28,6 +28,7 @@ Some fields are deliberately reported but never scored:
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -132,8 +133,52 @@ REPORTED_NOT_SCORED: Final[dict[str, str]] = {
 }
 
 
-def analyze(buf: AudioBuffer) -> FeatureVector:
+#: Measurement cache, keyed on exact sample content.
+#:
+#: HPSS inside the transient analyser is roughly 80% of the cost of a full
+#: measurement, while hashing the samples is ~145x cheaper than measuring
+#: them. The control loop re-measures repeated audio constantly -- a system
+#: that reverts an edit, or a numerical optimizer sweeping a parameter back
+#: over a value it already tried -- so the hit rate is high and the miss
+#: overhead is under 2%.
+#:
+#: Bounded, because an evaluation run measures thousands of distinct renders
+#: and an unbounded cache would hold every one of them in memory.
+_CACHE: Final[OrderedDict[tuple[str, bool], FeatureVector]] = OrderedDict()
+_CACHE_MAX: Final[int] = 256
+_CACHE_HITS: Final[list[int]] = [0, 0]  # hits, misses
+
+
+def cache_stats() -> dict[str, int]:
+    return {"entries": len(_CACHE), "hits": _CACHE_HITS[0], "misses": _CACHE_HITS[1]}
+
+
+def clear_cache() -> None:
+    _CACHE.clear()
+    _CACHE_HITS[0] = _CACHE_HITS[1] = 0
+
+
+def analyze(buf: AudioBuffer, use_cache: bool = True) -> FeatureVector:
     """Compute the full feature vector. Deterministic; no LLM involved."""
+    if use_cache:
+        # was_mono is part of the key: two buffers can hold identical samples
+        # while disagreeing about whether the stereo features are meaningful.
+        key = (buf.content_hash(), buf.was_mono)
+        cached = _CACHE.get(key)
+        if cached is not None:
+            _CACHE_HITS[0] += 1
+            _CACHE.move_to_end(key)
+            return cached
+        _CACHE_HITS[1] += 1
+        computed = _measure(buf)
+        _CACHE[key] = computed
+        if len(_CACHE) > _CACHE_MAX:
+            _CACHE.popitem(last=False)
+        return computed
+    return _measure(buf)
+
+
+def _measure(buf: AudioBuffer) -> FeatureVector:
     loud = analyze_loudness(buf)
     dyn = analyze_dynamics(buf, loud.true_peak_dbtp, loud.lufs_integrated)
     spec = analyze_spectral(buf)

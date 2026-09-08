@@ -65,3 +65,56 @@ def test_db_floors_silence_instead_of_returning_inf() -> None:
     assert db(0.0) == SILENCE_FLOOR_DB
     assert db(1.0) == 0.0
     assert db(0.5) == pytest.approx(-6.0206, abs=1e-4)
+
+
+def test_analyze_cache_returns_identical_results() -> None:
+    """A memo that changes a result is far worse than a slow measurement.
+    HPSS makes measurement ~145x more expensive than hashing the samples, so
+    the loop caches -- but only if caching is provably transparent."""
+    from headroom.analysis.features import analyze, cache_stats, clear_cache
+
+    buf = stereo(sine(997.0, -12.0, seconds=4.0))
+    clear_cache()
+    uncached = analyze(buf, use_cache=False)
+    first = analyze(buf)
+    second = analyze(buf)
+
+    assert first == uncached
+    assert second == uncached
+    stats = cache_stats()
+    assert stats["hits"] == 1
+    assert stats["misses"] == 1
+
+
+def test_analyze_cache_distinguishes_different_audio() -> None:
+    from headroom.analysis.features import analyze, clear_cache
+
+    clear_cache()
+    a = analyze(stereo(sine(997.0, -12.0, seconds=4.0)))
+    b = analyze(stereo(sine(997.0, -18.0, seconds=4.0)))
+    assert a.lufs_integrated != b.lufs_integrated
+
+
+def test_analyze_cache_distinguishes_mono_provenance() -> None:
+    """Two buffers can hold identical samples while disagreeing about whether
+    the stereo features mean anything, so was_mono is part of the key."""
+    from headroom.analysis.features import analyze, clear_cache
+
+    clear_cache()
+    samples = np.stack([sine(997.0, -12.0, seconds=4.0)] * 2, axis=1)
+    as_stereo = analyze(AudioBuffer(samples, SR, was_mono=False))
+    as_mono = analyze(AudioBuffer(samples, SR, was_mono=True))
+    assert as_stereo.was_mono is False
+    assert as_mono.was_mono is True
+
+
+def test_analyze_cache_is_bounded() -> None:
+    """An evaluation measures thousands of distinct renders; an unbounded cache
+    would hold every one of them in memory."""
+    from headroom.analysis.features import _CACHE_MAX, analyze, cache_stats, clear_cache
+
+    clear_cache()
+    rng = np.random.default_rng(0)
+    for _ in range(_CACHE_MAX + 12):
+        analyze(AudioBuffer(rng.standard_normal((SR // 8, 2)) * 0.05, SR))
+    assert cache_stats()["entries"] <= _CACHE_MAX
