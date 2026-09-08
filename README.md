@@ -24,24 +24,47 @@ headroom master mix.wav out.wav --reference ref.wav --target spotify
 Deliver to a platform:
 
 ```
-$ headroom master mix.wav mastered.wav --target spotify
-target 'spotify' (loudness preset: Spotify normalization): 2 features across ['loudness']
+$ headroom master mix.wav mastered.wav --target club
+```
+
+![headroom closing the loop against a delivery target](docs/media/demo-master.gif)
+
+<details>
+<summary>the same run as text</summary>
+
+```
+$ headroom master audio/synthetic/synth_01.wav mastered.wav --target club
+target 'club' (loudness preset: loud club/CD master): 2 features across ['loudness']
 system agent-scaffold
 
-*  0  0.0000  0 out  gain.gain_db -1.344   role=loudness | targeting lufs_integrated +2.69 tol
-   1  0.0000  0 out  converged             inside tolerance
+*  0  4.3904  1 out  gain.gain_db +4.234        role=loudness | targeting lufs_integrated -8.47 tol | 1 edit(s): gain.gain_db +4
+*  1  0.0000  0 out  limiter.ceiling -0.300     role=loudness | targeting true_peak_dbtp +7.21 tol | 1 edit(s): limiter.ceiling 
+   2  0.0000  0 out  converged                  inside tolerance
 
-distance 1.1937 -> 0.0000  recovery +1.000  converged
-1 renders, 2.2s
+distance 5.2811 -> 0.0000  recovery +1.000  converged
+2 renders, 5.6s
 
-source -> gain[gain_db=-1.34] -> render
+source -> gain[gain_db=+4.23] -> limiter[ceiling_dbtp=-0.30 release_ms=50.00] -> render
+wrote mastered.wav
 ```
+
+Every recording on this page is made by a committed
+[tape script](docs/tapes), against the corpus `headroom synth-corpus` generates, with
+`ANTHROPIC_API_KEY` empty. `vhs docs/tapes/master.tape` reproduces this file.
+
+</details>
 
 Or say what you want in words. The model's only job is to turn the sentence into
 constraints; a deterministic controller and a deterministic metric do the rest:
 
+![translating a natural-language brief into constraints](docs/media/demo-brief.gif)
+
+<details>
+<summary>the same run as text</summary>
+
 ```
-$ headroom master mix.wav out.wav --brief "More space and width, but keep the low end tight and mono."
+$ headroom master audio/synthetic/synth_02.wav mastered.wav \
+    --brief "More space and width, but keep the low end tight and mono."
 
 brief: 'More space and width, but keep the low end tight and mono.'
   correlation_z       -2.0 tol ( -0.20 fisher-z)  -- more space
@@ -63,6 +86,8 @@ distance 0.5330 -> 0.3114  recovery +0.416  stopped: no_improvement
 source -> stereo_width[1.20 band=5] -> stereo_width[1.20 band=6] -> stereo_width[1.20 band=7]
        -> stereo_width[1.20 band=8] -> stereo_width[0.89] -> render
 ```
+
+</details>
 
 The half of that brief which says *don't* is the interesting half, and it becomes ten held
 dimensions rather than a hope. Note also that it does not converge: holding mono
@@ -489,6 +514,12 @@ headroom eval                                     # the matrix; free systems by 
 headroom report --html results/report             # tables plus a listening page
 ```
 
+The recordings on this page are generated, not captured by hand: each one is a committed
+[vhs](https://github.com/charmbracelet/vhs) tape in [`docs/tapes/`](docs/tapes) that runs
+the real CLI against the synthetic corpus with `ANTHROPIC_API_KEY` empty, so `vhs
+docs/tapes/brief.tape` reproduces the exact frames above. An `.mp4` sits beside each
+`.gif` for use anywhere that is not a GitHub readme.
+
 `fetch-corpus` exists because the honest headline needs real music and the standard corpus
 for it, MUSDB18-HQ, is a 22.66 GB download. It pulls the same tracks from a smaller
 distribution instead, verifies them against the MD5 Zenodo publishes, decodes only the
@@ -497,16 +528,36 @@ peak disk is the archive plus one track, and what survives is about 50 MB of cli
 audio is non-commercial and per-track licensed, so it is never committed, redistributed,
 or embedded in the report; the manifest records the digest that was verified instead.
 
-Chain ordering is enforced by the system, not trusted from the input. Hand it a chain with
-the limiter first and it says so:
+Distance is measured before anything is decided, and chain ordering is enforced by the
+system rather than trusted from the input — hand it a chain with the limiter first and it
+says what it moved:
+
+![measuring distance to a target, then enforcing chain order](docs/media/demo-invariants.gif)
+
+<details>
+<summary>the same two runs as text</summary>
 
 ```
-$ headroom render mix.wav chain.json mastered.wav
+$ headroom compare audio/synthetic/synth_01.wav --preset club
+target 'club' (loudness preset: loud club/CD master): 2 features across ['loudness']
+score 5.2811 (l2)  1/2 out of tolerance  converged=False
+by family: loudness=27.890
+lufs_integrated      -13.234 ==    -9.000 LUFS      delta  -4.234   -8.47 tol  TOO LOW
+true_peak_dbtp        -3.093 <=    -0.300 dBTP      delta  -2.793  -13.96 tol  ->
+
+$ headroom render audio/synthetic/synth_02.wav docs/media/out-of-order-chain.json ordered.wav
 repositioned gain 885431a3: 2 -> 0
+repositioned stereo_width 7c0d51e2: 3 -> 2
 repositioned limiter b975822f: 0 -> 3
-source -> gain[gain_db=+2.00] -> eq[peak 240Hz -3.0dB Q1.40, high_shelf 8000Hz +2.5dB Q0.71]
-       -> stereo_width[width=1.30 band=7] -> limiter[ceiling_dbtp=-1.00 release_ms=50.00] -> render
+source -> gain[gain_db=+2.00] -> eq[peak 240Hz -3.0dB Q1.40, high_shelf 8000Hz +2.5dB Q0.71] -> stereo_width[width=1.30 band=7] -> limiter[ceiling_dbtp=-1.00 release_ms=50.00] -> render
+wrote ordered.wav
 ```
+
+The chain fed to that second command is committed at
+[`docs/media/out-of-order-chain.json`](docs/media/out-of-order-chain.json) with the limiter
+at index 0 and the gain at index 2, so the repositioning is real rather than staged.
+
+</details>
 
 Distance is vector-valued and signed, because a scalar is useless to a controller. True peak
 in a delivery preset is a **ceiling**, not a setpoint — 3 dB of headroom is not an error:
@@ -529,6 +580,7 @@ true_peak_dbtp        -4.014 <=    -1.000 dBTP   delta  -3.014  -10.05 tol  ->
 | `src/headroom/baselines/` | heuristic, optimizer bound, random and hillclimb floors |
 | `src/headroom/agent/` | roles, tools, briefing, memory, supervisor, model boundary |
 | `evals/` | corpus fetch and split, degradations, runner, aggregation, HTML report |
+| `docs/tapes/` | the tape scripts that record the demos on this page |
 
 `src/headroom/agent/__init__.py` names the reading order for the agent package.
 
