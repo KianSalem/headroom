@@ -1,0 +1,132 @@
+{
+  "trace_schema_version": "2",
+  "system": "optimizer",
+  "track_id": "test/Arise_-_Run_Run_Run",
+  "degradation_kind": "over_expand",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "ratio": 3.092,
+    "threshold_db": -4.014
+  },
+  "degradation_lossy": false,
+  "source_hash": "e9bf6786845a7bdd598e5931e76b51ef",
+  "target_label": "original:test/Arise_-_Run_Run_Run",
+  "target_provenance": "full feature vector",
+  "initial_distance": 5.929220195601291,
+  "final_distance": 1.1007779107414117,
+  "recovery_ratio": 0.8143469335886622,
+  "converged": false,
+  "abort_reason": "max_steps",
+  "final_chain": {
+    "ops": [
+      {
+        "id": "639a27ff",
+        "kind": "gain",
+        "gain_db": 24.0
+      },
+      {
+        "id": "22ff8f47",
+        "kind": "compressor",
+        "threshold_db": -20.712170851689727,
+        "ratio": 3.237766743257026,
+        "attack_ms": 10.0,
+        "release_ms": 120.0,
+        "makeup_db": 0.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "639a27ff",
+            "kind": "gain",
+            "gain_db": 24.0
+          },
+          {
+            "id": "22ff8f47",
+            "kind": "compressor",
+            "threshold_db": -20.712170851689727,
+            "ratio": 3.237766743257026,
+            "attack_ms": 10.0,
+            "release_ms": 120.0,
+            "makeup_db": 0.0
+          }
+        ]
+      },
+      "chain_fingerprint": "813a83c4781056ddef9a1bf55c32658d",
+      "distance_score": 1.1007779107414117,
+      "n_out_of_tolerance": 5,
+      "by_family": {
+        "loudness": 1.129703,
+        "dynamics": 0.012707,
+        "spectral": 0.069302,
+        "stereo": 0.0,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "delta": -2.3359,
+          "scaled": -4.6718
+        },
+        {
+          "name": "flatness_logit",
+          "delta": 0.378,
+          "scaled": 2.5199
+        },
+        {
+          "name": "crest_short_p50",
+          "delta": 1.3554,
+          "scaled": 1.3554
+        },
+        {
+          "name": "true_peak_dbtp",
+          "delta": -1.2723,
+          "scaled": -1.2723
+        },
+        {
+          "name": "crest_factor_db",
+          "delta": 1.0278,
+          "scaled": 1.0278
+        }
+      ],
+      "action": "powell.3start -4.8284",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "abort",
+      "renders_used": 250,
+      "elapsed_s": 110.0074,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "multi-start Powell, 250 renders, 4 seeded chain(s). Unequal budget by design; every other system gets 14."
+    }
+  ],
+  "n_renders": 250,
+  "wall_time_s": 110.0107,
+  "total_cost_usd": 0.0,
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "total_cache_read_tokens": 0,
+  "git_sha": "3f079da",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {}
+}

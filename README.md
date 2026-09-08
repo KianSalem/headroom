@@ -217,6 +217,42 @@ Real music leaves headroom and gives 12. `headroom corpus-stats` says why it is 
 spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39 dB/oct, percussive ratio
 0.025 against 0.287, loudness range 0.04 LU against 2.34.
 
+### What the bound says, which the raw numbers hide
+
+A multi-start Powell optimizer, 250 renders a cell, seeded with every other system's final
+chain, says what was reachable at all within the op vocabulary. It never loses a cell to the
+heuristic (31 wins, 0 losses, 23 ties) and never oscillates, which is what makes it usable as
+a ceiling rather than a competitor. On the 6.8 s condition:
+
+| system | recovery (median) | renders | % of bound, averaged over kinds |
+|---|---|---|---|
+| `optimizer` *(measured bound)* | +1.000 | 250 | 100% |
+| **`agent-scaffold`** | **+0.996** | **2** | **97.9%** |
+| `heuristic` | +0.962 | 3 | 97.3% |
+| `agent` | +0.920 | 4 | 80.6% |
+
+**The scaffold reaches 99.6% of the ceiling in 2 renders against the optimizer's 250.** That
+ratio — not the recovery number — is the argument for a routed, bounded, measured loop over
+brute search.
+
+The bound also reframes the dynamics results, which is exactly what it is for. It is *not*
+1.000 everywhere: `over_compress` caps at +0.890 and `over_expand` at +0.854, so those
+degradations are not fully undoable with the ops available, no matter how many renders are
+spent.
+
+| kind | bound | `agent-scaffold` | `heuristic` | `agent` |
+|---|---|---|---|---|
+| `over_compress` | +0.890 | 96.5% | 96.1% | 96.6% |
+| `over_expand` | +0.854 | 91.7% | 96.7% | **98.9%** |
+| `spectral_tilt` | +0.969 | 93.6% | **87.8%** | **98.9%** |
+| `combo` | +1.000 | **100.0%** | 96.1% | 24.7% |
+
+So the systems looking weak on `over_compress` are all within 4% of everything that was
+achievable — the task, not the controller, is the limit. Where a controller genuinely leaves
+value behind is `spectral_tilt`, and that is the one kind the architecture most improves on
+the heuristic (87.8% → 93.6%). It is also where the model does best of the three at this clip
+length, at 98.9% of bound — a result that does not hold at 20 s, per the instability above.
+
 ### What that says
 
 **The architecture earns its keep, and it is the most stable thing in the table.** The
@@ -307,10 +343,9 @@ That weakens exactly one of 28 dimensions, and it is the one the dynamics role t
 20 s runs are the fix; the 6.8 s tables are kept because comparing them is what exposed the
 model's instability.
 
-**No optimizer bound on the real-music run.** The synthetic table has a multi-start Powell
-optimizer saying what was reachable at all; at 250 renders a cell it was too slow to add
-here in time. `recovery_ratio` is self-contained — `1 − final/initial` — so the table is
-readable without it, but "+0.996 of what was possible" is not a claim this run can make.
+**The optimizer bound is measured at 6.8 s, not 20 s.** At 250 renders a cell the bound is
+the slowest thing here, so it was run on the shorter clips. The percentages of bound above
+therefore come from the 6.8 s condition, and the 20 s table is un-normalised.
 
 **Real-music audio is not published.** MUSDB18's licence is non-commercial with per-track
 terms, so results are numbers only, with no listening page. The synthetic showcase in

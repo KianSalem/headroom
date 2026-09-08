@@ -346,6 +346,23 @@ mechanism is in the traces — a deterministic controller has its step size
 factor, while a model is only *told* the factor, and only after oscillation is
 already detected.
 
+**The bound is not 1.000, and that changes who looks bad.** A multi-start
+Powell optimizer at 250 renders a cell, seeded with every other system's final
+chain, never loses a cell to the heuristic (31/0/23) and never oscillates. Its
+per-kind ceiling shows two degradations that simply cannot be undone with the
+ops available: `over_compress` caps at +0.890 and `over_expand` at +0.854.
+
+Expressed as a fraction of that ceiling, averaged over the nine kinds:
+scaffold 97.9%, heuristic 97.3%, agent 80.6%. And per kind the picture inverts
+in places — on `over_compress` all three systems sit within 4% of everything
+achievable, so the task is the limit rather than the controller. The one place
+a deterministic controller genuinely leaves value behind is `spectral_tilt`,
+where the heuristic reaches 87.8% of bound and the architecture 93.6%.
+
+The number worth quoting is not the recovery: **the scaffold reaches 99.6% of
+the ceiling in a median 2 renders against the optimizer's 250.** That ratio is
+the argument for a routed, bounded, measured loop instead of brute search.
+
 ### On the synthetic corpus, 18 paired cells, 20 s clips
 
 **The architecture beats the heuristic where coupling exists, and the
@@ -388,8 +405,9 @@ is the harder test and is not run.
 Six tracks and one seed is 54 cells, so nine degradation kinds means six cells
 per kind and every per-kind number is indicative rather than a result — the
 model's clip-length instability is what six cells per kind looks like when the
-system under test is not deterministic. The real-music runs have no optimizer
-bound yet, so "+0.991" is not yet "+0.991 of what was reachable".
+system under test is not deterministic. The optimizer bound was run at 6.8 s
+only, because at 250 renders a cell it is the slowest thing in the suite, so
+the 20 s table is un-normalised.
 
 The two agent rows were run at two clip lengths and disagree with each other
 about the model. That is reported as the finding rather than resolved by

@@ -1,0 +1,222 @@
+{
+  "trace_schema_version": "2",
+  "system": "optimizer",
+  "track_id": "test/BKS_-_Bulldozer",
+  "degradation_kind": "spectral_tilt",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "slope_db_oct": 4.185,
+    "shelf_gain_db": 3.139
+  },
+  "degradation_lossy": false,
+  "source_hash": "09f41ab85905ade8600b47de9239f035",
+  "target_label": "original:test/BKS_-_Bulldozer",
+  "target_provenance": "full feature vector",
+  "initial_distance": 1.851361775905594,
+  "final_distance": 0.12483566137291342,
+  "recovery_ratio": 0.9325708983529974,
+  "converged": false,
+  "abort_reason": "max_steps",
+  "final_chain": {
+    "ops": [
+      {
+        "id": "74f4502a",
+        "kind": "gain",
+        "gain_db": 1.346
+      },
+      {
+        "id": "7d0897d3",
+        "kind": "eq",
+        "bands": [
+          {
+            "shape": "peak",
+            "freq_hz": 12649.110640673518,
+            "gain_db": -4.2,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 5656.85424949238,
+            "gain_db": -4.2,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 2828.42712474619,
+            "gain_db": -4.0,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 34.64101615137755,
+            "gain_db": 2.1,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 84.8528137423857,
+            "gain_db": 2.1,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 353.5533905932738,
+            "gain_db": 2.5,
+            "q": 1.0
+          },
+          {
+            "shape": "peak",
+            "freq_hz": 1414.213562373095,
+            "gain_db": -1.6,
+            "q": 1.0
+          }
+        ]
+      },
+      {
+        "id": "bf6a481f",
+        "kind": "limiter",
+        "ceiling_dbtp": -0.1,
+        "release_ms": 50.0
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "74f4502a",
+            "kind": "gain",
+            "gain_db": 1.346
+          },
+          {
+            "id": "7d0897d3",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 12649.110640673518,
+                "gain_db": -4.2,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": -4.2,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 2828.42712474619,
+                "gain_db": -4.0,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 34.64101615137755,
+                "gain_db": 2.1,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 84.8528137423857,
+                "gain_db": 2.1,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 353.5533905932738,
+                "gain_db": 2.5,
+                "q": 1.0
+              },
+              {
+                "shape": "peak",
+                "freq_hz": 1414.213562373095,
+                "gain_db": -1.6,
+                "q": 1.0
+              }
+            ]
+          },
+          {
+            "id": "bf6a481f",
+            "kind": "limiter",
+            "ceiling_dbtp": -0.1,
+            "release_ms": 50.0
+          }
+        ]
+      },
+      "chain_fingerprint": "1245a4b2bb0f0eddb0788c04dffbed78",
+      "distance_score": 0.12483566137291342,
+      "n_out_of_tolerance": 3,
+      "by_family": {
+        "loudness": 0.0,
+        "dynamics": 0.0,
+        "spectral": 0.015584,
+        "stereo": 0.0,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "flatness_logit",
+          "delta": 0.2268,
+          "scaled": 1.512
+        },
+        {
+          "name": "band_clr_7",
+          "delta": -1.0621,
+          "scaled": -1.4161
+        },
+        {
+          "name": "band_clr_6",
+          "delta": -0.9677,
+          "scaled": -1.2902
+        },
+        {
+          "name": "lufs_integrated",
+          "delta": 0.0586,
+          "scaled": 0.1172
+        },
+        {
+          "name": "true_peak_dbtp",
+          "delta": -0.052,
+          "scaled": -0.052
+        }
+      ],
+      "action": "powell.3start -1.7265",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "abort",
+      "renders_used": 250,
+      "elapsed_s": 120.7864,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "multi-start Powell, 250 renders, 3 seeded chain(s). Unequal budget by design; every other system gets 14."
+    }
+  ],
+  "n_renders": 250,
+  "wall_time_s": 120.7897,
+  "total_cost_usd": 0.0,
+  "total_input_tokens": 0,
+  "total_output_tokens": 0,
+  "total_cache_read_tokens": 0,
+  "git_sha": "3f079da",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {}
+}
