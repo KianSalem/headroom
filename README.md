@@ -155,37 +155,38 @@ run.
 
 ## Results
 
-The headline is on **real music** — six MUSDB18 test tracks, 54 paired cells, one seed,
-14-render budget for every system, `claude-haiku-4-5` for the agent. Not one cell was
-skipped for a weak degradation, which was not true of the synthetic corpus. Fetch the same
-corpus with `headroom fetch-corpus`; full tables, the paired tests, the per-specialist
-breakdown and the measured spend are in
-[`results/RESULTS-musdb18-7s.md`](results/RESULTS-musdb18-7s.md).
+Real music — six MUSDB18 test tracks, 54 paired cells, one seed, 14-render budget for every
+system, `claude-haiku-4-5` for the agent. Clips are 20 s, the length at which loudness range
+is a real measurement rather than filter settling. No cell was skipped for a weak
+degradation. Fetch the corpus with `headroom fetch-corpus`; full tables are in
+[`results/RESULTS-musdb18-20s.md`](results/RESULTS-musdb18-20s.md).
 
 | system | recovery (median) | IQR | converged | oscillated | renders | cost |
 |---|---|---|---|---|---|---|
-| **`agent-scaffold`** | **+0.996** | +0.919 to +1.000 | **67%** | **11%** | **2** | **$0** |
-| `heuristic` | +0.962 | +0.878 to +1.000 | 67% | 13% | 3 | $0 |
-| `agent` *(Haiku 4.5)* | +0.920 | +0.779 to +1.000 | 44% | 30% | 4 | $1.27 |
-| `hillclimb` | +0.003 | +0.000 to +0.062 | 0% | 57% | 6 | $0 |
-| `random` | +0.000 | +0.000 to +0.019 | 0% | 69% | 6 | $0 |
+| **`agent-scaffold`** | **+0.991** | +0.912 to +1.000 | **67%** | **6%** | **2** | **$0** |
+| `heuristic` | +0.959 | +0.858 to +1.000 | 67% | 11% | 3 | $0 |
+| `agent` *(Haiku 4.5)* | +0.934 | +0.821 to +1.000 | 54% | 31% | 3 | $1.20 |
+| `hillclimb` | +0.001 | +0.000 to +0.061 | 0% | 76% | 6 | $0 |
+| `random` | +0.000 | +0.000 to +0.001 | 0% | 76% | 6 | $0 |
 | `null` | +0.000 | +0.000 to +0.000 | 0% | 0% | 0 | $0 |
 
-Paired against the heuristic, Wilcoxon signed-rank on the same 54 cells. **Both directions
-are significant, and they point opposite ways:**
+Paired against the heuristic, Wilcoxon signed-rank, same cells. Both clip lengths shown
+because they disagree about the agent, and that disagreement is the interesting part:
 
-| system | median difference | wins | losses | ties | p |
-|---|---|---|---|---|---|
-| `agent-scaffold` | +0.000 | 26 | 13 | 15 | **0.028** |
-| `agent` | +0.000 | 18 | 26 | 10 | **0.032** |
-| `random` / `hillclimb` / `null` | −0.94 | 0 | 54 | 0 | ≤0.0001 |
+| system | clips | median difference | wins | losses | ties | p |
+|---|---|---|---|---|---|---|
+| `agent-scaffold` | 20 s | +0.000 | 27 | 15 | 12 | **0.010** |
+| `agent-scaffold` | 6.8 s | +0.000 | 26 | 13 | 15 | **0.028** |
+| `agent` | 6.8 s | +0.000 | 18 | 26 | 10 | **0.032** |
+| `agent` | 20 s | +0.000 | 19 | 22 | 13 | 0.168 |
+| floors | either | −0.94 | 0 | 54 | 0 | ≤0.0001 |
 
-### The controls, and a claim they cut down
+### The controls, and two claims they cut down
 
-The architecture beating the heuristic is only interesting if it survives holding everything
-else still. So the same comparison was run in four conditions — two corpora × two clip
-lengths, 54 cells each, same six-track count, same seed, same systems. The controls are pure
-arithmetic, so all of this cost nothing.
+The architecture beating the heuristic is only worth reporting if it survives holding
+everything else still, so the comparison was run in four conditions — two corpora × two clip
+lengths, 54 cells each, same six-track count, same seed, same systems. All of it is pure
+arithmetic and cost nothing.
 
 | corpus | clips | `agent-scaffold` | `heuristic` | gap | wins | losses | ties | p |
 |---|---|---|---|---|---|---|---|---|
@@ -194,87 +195,62 @@ arithmetic, so all of this cost nothing.
 | real music | 6.8 s | +0.996 | +0.962 | **0.034** | 26 | 13 | 15 | **0.028** |
 | **real music** | **20 s** | **+0.991** | **+0.959** | **0.032** | 27 | 15 | 12 | **0.010** |
 
-**This killed a stronger claim.** With only the 6.8 s row in hand it looked like the
-advantage appeared *only* on real music. It does not: synthetic material at 20 s is also
-significant at p=0.047. The defensible reading is about **effect size, not significance** —
-the median gap is roughly five times larger on real music, 0.033 against 0.007, consistently
-at both clip lengths. Real music does not create the advantage; it makes it large enough to
-be worth caring about.
+**Retracted claim 1: "the advantage only appears on real music."** It does not — synthetic at
+20 s is significant too (p=0.047). What survives is about **effect size rather than
+significance**: the median gap is roughly five times larger on real music, 0.033 against
+0.007, consistently at both clip lengths. Real music does not create the advantage; it makes
+it large enough to be worth caring about.
+
+**Retracted claim 2: "the model is significantly worse than the heuristic."** True at 6.8 s
+(p=0.032) and on the original synthetic run (p=0.025), *not* true at 20 s on real music
+(p=0.168) — which is the most informative condition of the three. Stated as a general result
+it was an overclaim, and running the extra condition is what caught it.
 
 **And the original null result was mostly a sample-size problem.** The first synthetic run
 reported p=0.120 and was read as "not significant". The identical condition at 54 cells
-instead of 18 gives p=0.047. n=18 could not have resolved an 0.008 gap, and saying so is
-more honest than the material story alone.
+instead of 18 gives p=0.047. An 0.008 gap was never resolvable at n=18, which is a less
+flattering explanation than the material one, so it goes first.
 
-What the ties show is why the synthetic corpus is a poor instrument regardless: 21 and 24 of
-54 cells are exact ties, because both systems finish at recovery 1.000 on material easy
-enough to saturate them. Real music leaves headroom — the heuristic drops to +0.959,
-convergence from 76% to 67% — and 12 ties instead of 24. `headroom corpus-stats` says why
-the material is harder: spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39
-dB/oct, percussive ratio 0.025 against 0.287, loudness range 0.04 LU against 2.34.
-
-This also corrected a prediction this README used to make. It said real music would *widen*
-the coupling the architecture exploits. Per kind the margins collapsed instead —
-`spectral_tilt` +0.290 → +0.057, `over_compress` +0.148 → +0.004. What grew was breadth, not
-depth: on synthetic the architecture won heavily on two kinds and tied everywhere else; on
-real music it wins slightly on most kinds. Broader and shallower.
-
-### Robustness: the same six tracks at 20 s
-
-6.8 s is too short to measure loudness range on, so the whole thing was re-run
-on 20 s clips of the same six tracks, where `lra` is 2.34 LU of real movement rather than
-four windows of filter settling
-([`results/RESULTS-musdb18-20s.md`](results/RESULTS-musdb18-20s.md)). The result
-strengthens:
-
-| clips | `agent-scaffold` | `heuristic` | oscillated | wins | losses | ties | p |
-|---|---|---|---|---|---|---|---|
-| 6.8 s | +0.996 | +0.962 | 11% vs 13% | 26 | 13 | 15 | 0.028 |
-| **20 s** | +0.991 | +0.959 | **6% vs 11%** | 27 | 15 | 12 | **0.010** |
-
-More useful than the p-value: **the one kind where the architecture looked worse than the
-heuristic turns out to have been an artefact of the short clip.**
-
-| kind | Δ at 6.8 s | Δ at 20 s |
-|---|---|---|
-| `over_expand` | **−0.043** | **+0.034** |
-| `over_compress` | +0.004 | +0.017 |
-| every other kind | — | within 0.01 of its 6.8 s value |
-
-The sign flips, and the two dynamics degradations are the *only* two that move at all. That
-is what the caveat above predicted: `lra` is what the dynamics role turns on, 6.8 s cannot
-measure it, and those two kinds are where the systems sit closest. Both systems also get
-absolutely worse on dynamics once the material has real loudness movement to track
-(`over_expand` +0.825 → +0.696), which is the honest direction for that to move.
+Why the synthetic corpus is a weak instrument regardless: 21 and 24 of its 54 cells are exact
+ties, because both systems finish at recovery 1.000 on material easy enough to saturate them.
+Real music leaves headroom and gives 12. `headroom corpus-stats` says why it is harder —
+spectral flatness 0.274 against 0.004, tilt −0.43 against −5.39 dB/oct, percussive ratio
+0.025 against 0.287, loudness range 0.04 LU against 2.34.
 
 ### What that says
 
-**The architecture earns its keep, and only real music shows it.** The scaffold is the same
-supervisor, tool layer, memory and critic as the agent, with the heuristic's own correction
-constants imported rather than copied — so it differs from the heuristic in exactly one
-respect, that it may make several coordinated edits per render. That claim is visible in the
-traces as `edits/turn`, which reaches 4.72 on the stereo role. It converges in a median 2
-renders against 3, oscillates on 11% of cells against 13%, and wins twice as often as it
-loses (p=0.028).
+**The architecture earns its keep, and it is the most stable thing in the table.** The
+scaffold is the same supervisor, tool layer, memory and critic as the agent, with the
+heuristic's own correction constants imported rather than copied — so it differs from the
+heuristic in exactly one respect, that it may make several coordinated edits per render.
+That claim shows up in the traces as `edits/turn`, which reaches 4.72 on the stereo role. It
+wins in three of four conditions, converges in a median 2 renders against 3, and halves the
+heuristic's oscillation rate (6% against 11%).
 
-**The model does not — but its failure is variance, not incompetence.** The identical
-architecture with Haiku 4.5 in place of the arithmetic is *significantly worse* than the
-heuristic: 18 wins against 26 losses, p=0.032, 44% convergence, 30% oscillation, $1.27. The
-median hides what is actually happening, which the per-kind table shows:
+**The model's problem is not that it scores worse. It is that it will not sit still.** Change
+only the analysis window — same six tracks, same degradations, same seed, 6.8 s to 20 s — and
+measure how far each system's per-kind results move:
 
-| kind | `heuristic` | `agent-scaffold` | `agent` |
-|---|---|---|---|
-| `spectral_tilt` | +0.850 | +0.907 | **+0.958** |
-| `over_expand` | +0.825 | +0.783 | **+0.844** |
-| `combo` | +0.961 | **+1.000** | +0.247 |
-| `stereo_collapse` | +0.990 | **+1.000** | +0.334 |
+| system | mean \|Δ\| across the nine kinds | worst kind |
+|---|---|---|
+| `agent-scaffold` | **0.012** | 0.053 (`over_expand`) |
+| `heuristic` | 0.021 | 0.130 (`over_expand`) |
+| `agent` | **0.219** | **0.753** (`combo`) |
 
-The model is the *best* system on two of nine degradation kinds and catastrophic on two
-others. It consults its specialists 226 turns against the scaffold's 159, at hit rates of
-52–96% where the scaffold's are 95–98%. The mechanism is visible in the traces: a
-deterministic controller has its step size **imposed** by the critic, which multiplies every
-correction by the damping factor, while a model is only **told** the factor — and only after
-oscillation has already been detected. Persuasion is a worse actuator than multiplication.
+The model moves ten times as far as the heuristic and eighteen times as far as the scaffold.
+Concretely: at 6.8 s it collapsed on `combo` (+0.247) and `stereo_collapse` (+0.334) and was
+the best system on `spectral_tilt` (+0.958); at 20 s the collapses are gone (+1.000, +0.963)
+and `spectral_tilt` is its *worst* kind (+0.774, against the scaffold's +0.920). A per-kind
+story about the model told at one clip length does not survive the other, and the earlier
+version of this README told one.
+
+What does survive across both: it oscillates on 31% of cells against 6–11%, converges on 54%
+against 67%, consults its specialists 226 turns against the scaffold's 159 at hit rates of
+52–96% where the scaffold's are 95–98%, and costs $1.20 against $0. The mechanism is visible
+in the traces — a deterministic controller has its step size **imposed** by the critic, which
+multiplies every correction by the damping factor, while a model is only **told** the factor,
+and only after oscillation has already been detected. Persuasion is a worse actuator than
+multiplication.
 
 **Sonnet 5 is not the answer either.** On the same cell it cost 3.2× as much as Haiku for
 slightly worse recovery (+0.764 against +0.799), spending 2.6× the output tokens and holding
@@ -285,10 +261,9 @@ does not reward a larger model.
 
 The original run — 18 cells, 20 s clips, two test tracks, and a multi-start Powell optimizer
 as a measured bound — is in [`results/RESULTS.md`](results/RESULTS.md). There the scaffold
-reached +0.999 against the heuristic's +0.995 (p=0.120, not significant at n=18) and the
-agent +0.913 (p=0.025, significantly worse). The real-music run reproduces the model result
-on different material and at three times the cell count, and turns the architecture result
-from suggestive into significant.
+reached +0.999 against the heuristic's +0.995 and the agent +0.913. The real-music runs
+supersede it: three times the cells, harder material, and a four-condition control design
+around it.
 
 ### Where the model does win
 
@@ -319,16 +294,18 @@ the *material*, not the task: a controller still knows the damage was reachable 
 owns. A degradation drawn from outside the vocabulary — a bad room, a codec, a bass player
 having a bad day — is the harder test and is not run here.
 
-**The headline clips are 6.8 s, which is too short to measure loudness range on.** `lra` is
-built from 3 s windows on a 1 s hop, so a 6.8 s clip gives about four of them and
-K-weighting settling dominates the percentiles — a held sine tone measures 0.94 LU this way.
-That weakens exactly one of 28 dimensions, but it is the one the dynamics role turns on.
-This one is measured rather than left hanging: the 20 s re-run below shows it changes the
-two dynamics kinds and nothing else.
-
 **n=54 from six tracks is still small, and one seed.** Nine degradation kinds mean six cells
-per kind, so the per-kind column is indicative and the overall paired test is the number to
-read. Both significant results sit near p=0.03, which is not a large margin.
+per kind, so every per-kind number is indicative and the overall paired test is the one to
+read — the clip-length instability above is exactly what six cells per kind looks like when a
+system is not deterministic. The architecture result sits at p=0.010 and p=0.047 depending on
+corpus, which is not a large margin either.
+
+**A 6.8 s clip cannot measure loudness range, and one earlier conclusion rested on that.**
+`lra` is built from 3 s windows on a 1 s hop, so 6.8 s gives about four of them and
+K-weighting settling dominates the percentiles — a held sine tone measures 0.94 LU this way.
+That weakens exactly one of 28 dimensions, and it is the one the dynamics role turns on. The
+20 s runs are the fix; the 6.8 s tables are kept because comparing them is what exposed the
+model's instability.
 
 **No optimizer bound on the real-music run.** The synthetic table has a multi-start Powell
 optimizer saying what was reachable at all; at 250 renders a cell it was too slow to add

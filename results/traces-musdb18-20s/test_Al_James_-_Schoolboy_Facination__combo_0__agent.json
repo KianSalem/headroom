@@ -1,0 +1,326 @@
+{
+  "trace_schema_version": "2",
+  "system": "agent",
+  "track_id": "test/Al_James_-_Schoolboy_Facination",
+  "degradation_kind": "combo",
+  "degradation_seed": 0,
+  "degradation_params": {
+    "parts": "stereo_overwide,stereo_collapse",
+    "stereo_overwide.width": 1.761,
+    "stereo_collapse.width": 0.759
+  },
+  "degradation_lossy": false,
+  "source_hash": "d3f4f0deb1143449684df7c1bb68f3f0",
+  "target_label": "original:test/Al_James_-_Schoolboy_Facination",
+  "target_provenance": "full feature vector",
+  "initial_distance": 0.6647664729464089,
+  "final_distance": 0.0,
+  "recovery_ratio": 1.0,
+  "converged": true,
+  "abort_reason": null,
+  "final_chain": {
+    "ops": [
+      {
+        "id": "708ab42e",
+        "kind": "stereo_width",
+        "width": 0.71,
+        "band": null
+      }
+    ]
+  },
+  "steps": [
+    {
+      "index": 0,
+      "chain": {
+        "ops": [
+          {
+            "id": "708ab42e",
+            "kind": "stereo_width",
+            "width": 1.33,
+            "band": null
+          }
+        ]
+      },
+      "chain_fingerprint": "25e3aefcd9cd7dcd42d3c3d4c3327a0f",
+      "distance_score": 1.8162609232133589,
+      "n_out_of_tolerance": 17,
+      "by_family": {
+        "loudness": 0.218969,
+        "dynamics": 0.0,
+        "spectral": 0.012513,
+        "stereo": 3.067322,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "correlation_z",
+          "family": "stereo",
+          "unit": "fisher-z",
+          "delta": -0.5749,
+          "scaled": -5.749,
+          "excess": -4.749
+        },
+        {
+          "name": "width_5",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 4.9934,
+          "scaled": 4.9934,
+          "excess": 3.9934
+        },
+        {
+          "name": "width_1",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 4.9934,
+          "scaled": 4.9934,
+          "excess": 3.9934
+        },
+        {
+          "name": "width_4",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 4.9934,
+          "scaled": 4.9934,
+          "excess": 3.9934
+        },
+        {
+          "name": "width_6",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 4.9934,
+          "scaled": 4.9934,
+          "excess": 3.9934
+        }
+      ],
+      "action": "width.global +0.330",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 1,
+      "elapsed_s": 4.0478,
+      "input_tokens": 4738,
+      "output_tokens": 133,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.005403,
+      "role": "stereo",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=stereo | targeting correlation_z -2.90 tol | 1 edit(s): width.global +0.330 | correlation_z is -2.90 too narrow, width_0-8 are +2.52 too narrow globally | applying global width increase to address narrow correlation and all width bands"
+    },
+    {
+      "index": 1,
+      "chain": {
+        "ops": [
+          {
+            "id": "708ab42e",
+            "kind": "stereo_width",
+            "width": 0.71,
+            "band": null
+          }
+        ]
+      },
+      "chain_fingerprint": "fa113b7d789e7df2bcb0f2551fba4979",
+      "distance_score": 0.0,
+      "n_out_of_tolerance": 0,
+      "by_family": {
+        "loudness": 0.0,
+        "dynamics": 0.0,
+        "spectral": 0.0,
+        "stereo": 0.0,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -0.0716,
+          "scaled": -0.1432,
+          "excess": -0.0
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -0.0348,
+          "scaled": -0.0348,
+          "excess": -0.0
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": -0.0303,
+          "scaled": -0.0303,
+          "excess": -0.0
+        },
+        {
+          "name": "crest_factor_db",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": 0.0257,
+          "scaled": 0.0257,
+          "excess": 0.0
+        },
+        {
+          "name": "crest_short_p50",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": -0.0228,
+          "scaled": -0.0228,
+          "excess": -0.0
+        }
+      ],
+      "action": "width.global -0.620",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "continue",
+      "renders_used": 2,
+      "elapsed_s": 8.3129,
+      "input_tokens": 4881,
+      "output_tokens": 146,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.005611,
+      "role": "stereo",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "role=stereo | targeting correlation_z -5.75 tol | 1 edit(s): width.global -0.620 | width_1 to width_7 all +5dB too hot, need narrower; reversed global overshoot"
+    },
+    {
+      "index": 2,
+      "chain": {
+        "ops": [
+          {
+            "id": "708ab42e",
+            "kind": "stereo_width",
+            "width": 0.71,
+            "band": null
+          }
+        ]
+      },
+      "chain_fingerprint": "fa113b7d789e7df2bcb0f2551fba4979",
+      "distance_score": 0.0,
+      "n_out_of_tolerance": 0,
+      "by_family": {
+        "loudness": 0.0,
+        "dynamics": 0.0,
+        "spectral": 0.0,
+        "stereo": 0.0,
+        "transient": 0.0
+      },
+      "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": -0.0716,
+          "scaled": -0.1432,
+          "excess": -0.0
+        },
+        {
+          "name": "true_peak_dbtp",
+          "family": "loudness",
+          "unit": "dBTP",
+          "delta": -0.0348,
+          "scaled": -0.0348,
+          "excess": -0.0
+        },
+        {
+          "name": "lra",
+          "family": "loudness",
+          "unit": "LU",
+          "delta": -0.0303,
+          "scaled": -0.0303,
+          "excess": -0.0
+        },
+        {
+          "name": "crest_factor_db",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": 0.0257,
+          "scaled": 0.0257,
+          "excess": 0.0
+        },
+        {
+          "name": "crest_short_p50",
+          "family": "dynamics",
+          "unit": "dB",
+          "delta": -0.0228,
+          "scaled": -0.0228,
+          "excess": -0.0
+        }
+      ],
+      "action": "",
+      "step_scale": 1.0,
+      "oscillating": false,
+      "verdict": "converged",
+      "renders_used": 2,
+      "elapsed_s": 8.3129,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_tokens": 0,
+      "cost_usd": 0.0,
+      "role": "",
+      "n_edits": 1,
+      "n_rejected": 0,
+      "note": "inside tolerance"
+    }
+  ],
+  "n_renders": 2,
+  "wall_time_s": 8.3227,
+  "total_cost_usd": 0.011014,
+  "total_input_tokens": 9619,
+  "total_output_tokens": 279,
+  "total_cache_read_tokens": 0,
+  "git_sha": "35d7ce4",
+  "config_hash": "9a9ee3667fe018b0",
+  "package_versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pedalboard": "0.9.24",
+    "librosa": "1.0.0",
+    "pyloudnorm": "0.2.0",
+    "soundfile": "0.14.0"
+  },
+  "model": "claude-haiku-4-5",
+  "effort": "",
+  "replayed_from_cassette": false,
+  "system_stats": {
+    "turns": 2,
+    "settled": 1,
+    "helped": 0,
+    "hit_rate": 0.0,
+    "by_role": {
+      "eq": 0,
+      "dynamics": 0,
+      "stereo": 2,
+      "loudness": 0
+    },
+    "ownership_violations": 0,
+    "rejected_calls": 0,
+    "consults": 2,
+    "repositions": 0,
+    "empty_rounds": 0,
+    "passes": {},
+    "client": {
+      "model": "claude-haiku-4-5",
+      "calls": 4,
+      "replayed": 0,
+      "input_tokens": 9619,
+      "output_tokens": 279,
+      "cache_read_tokens": 0,
+      "cache_write_5m_tokens": 0,
+      "cache_write_1h_tokens": 0,
+      "cost_usd": 0.011014,
+      "cassette": {
+        "mode": "auto",
+        "path": "cassettes/claude-haiku-4-5",
+        "hits": 0,
+        "misses": 4,
+        "writes": 4,
+        "on_disk": 607
+      }
+    }
+  }
+}

@@ -313,23 +313,38 @@ the opposite and collapsed: `spectral_tilt` +0.290 → +0.057, `over_compress`
 instead of large wins on two. The conclusion held; the stated reason for it
 did not.
 
-**The model's failure mode is variance, not incompetence.** `agent` against
-`heuristic` on the same cells: 18 wins, 26 losses, p=0.0319 — significantly
-worse, replicating the synthetic result on different material. But the median
-is the wrong summary. Per kind it is the *best* of the three systems on two of
-nine, and catastrophic on two others:
+**The model's problem is not its score. It is that it will not sit still.**
+`agent` against `heuristic` is significantly worse at 6.8 s (18/26/10,
+p=0.0319) and *not* significantly worse at 20 s (19/22/13, p=0.1676). So
+"the model is significantly worse on numeric targets", which this document
+asserted, is an overclaim and is retracted.
 
-| kind | `heuristic` | `agent-scaffold` | `agent` |
-|---|---|---|---|
-| `spectral_tilt` | +0.850 | +0.907 | **+0.958** |
-| `over_expand` | +0.825 | +0.783 | **+0.844** |
-| `combo` | +0.961 | **+1.000** | +0.247 |
-| `stereo_collapse` | +0.990 | **+1.000** | +0.334 |
+What replaced it is better. Change only the analysis window — same six tracks,
+same degradations, same seed, 6.8 s against 20 s — and measure how far each
+system's per-kind medians move:
 
-It wins where one coherent spectral judgement is enough, and collapses where
-several coupled features have to be balanced at once — 30% oscillation against
-the scaffold's 11%, and 226 specialist turns against 159 at hit rates of
-52–96% where the scaffold's are 95–98%.
+| system | mean abs. change over nine kinds | worst kind |
+|---|---|---|
+| `agent-scaffold` | 0.012 | 0.053 (`over_expand`) |
+| `heuristic` | 0.021 | 0.130 (`over_expand`) |
+| `agent` | **0.219** | **0.753** (`combo`) |
+
+Ten times the heuristic's movement and eighteen times the scaffold's.
+Concretely, at 6.8 s the model collapsed on `combo` (+0.247) and
+`stereo_collapse` (+0.334) and was the best of the three on `spectral_tilt`
+(+0.958); at 20 s the collapses are gone (+1.000, +0.963) and `spectral_tilt`
+is its worst kind (+0.774 against the scaffold's +0.920). An earlier version of
+this section built a "wins where one coherent spectral judgement is enough,
+collapses where features are coupled" story out of the 6.8 s column. The 20 s
+column does not support it. The per-kind story was noise dressed as mechanism.
+
+What does survive both conditions: 31% oscillation against 6–11%, convergence
+54% against 67%, 226 specialist turns against 159 at hit rates of 52–96%
+against 95–98%, the lowest median of the three, and $1.20 against $0. The
+mechanism is in the traces — a deterministic controller has its step size
+*imposed* by the critic, which multiplies every correction by the damping
+factor, while a model is only *told* the factor, and only after oscillation is
+already detected.
 
 ### On the synthetic corpus, 18 paired cells, 20 s clips
 
@@ -370,11 +385,16 @@ controller still knows the damage was reachable by ops it owns. Damage from
 outside the vocabulary — a bad room, a codec, a bass player having a bad day —
 is the harder test and is not run.
 
-The real-music clips are 6.8 s, which is too short to measure `lra` on, and
-`lra` is what the dynamics role turns on. Six tracks and one seed is 54 cells;
-both significant results sit near p=0.03, which is not a large margin. The
-real-music run has no optimizer bound, so "+0.996" is not yet "+0.996 of what
-was reachable".
+Six tracks and one seed is 54 cells, so nine degradation kinds means six cells
+per kind and every per-kind number is indicative rather than a result — the
+model's clip-length instability is what six cells per kind looks like when the
+system under test is not deterministic. The real-music runs have no optimizer
+bound yet, so "+0.991" is not yet "+0.991 of what was reachable".
+
+The two agent rows were run at two clip lengths and disagree with each other
+about the model. That is reported as the finding rather than resolved by
+picking the more flattering one, but it does mean the model's *ranking* against
+the heuristic on real music is genuinely unsettled at this sample size.
 
 ## Cost
 
