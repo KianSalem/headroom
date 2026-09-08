@@ -125,6 +125,31 @@ def config_hash(config: CriticConfig, target: TargetProfile, norm: str) -> str:
     return hashlib.blake2b(blob.encode(), digest_size=8).hexdigest()
 
 
+def direction_key(action: str) -> str:
+    """The identity of a *move*, for the "tried this and it was worse" set.
+
+    Recording the whole action string was measurably useless. A proportional
+    controller emits a different magnitude every step, so ``comp.ratio +3.063``
+    and ``comp.ratio +4.249`` never matched and nothing was ever recognised as
+    already-failed -- the heuristic baseline added compression seven times in a
+    row while the distance climbed monotonically, then aborted.
+
+    Recording the parameter alone is too strong: a move that overshot should be
+    retried smaller, which the critic's damping already arranges. Parameter
+    plus *sign* is the useful identity. "Pushing this parameter up made things
+    worse" is real information; it does not forbid pulling the parameter back
+    down, which is usually the right next move.
+    """
+    head, _, tail = action.rpartition(" ")
+    if not head:
+        return action
+    try:
+        value = float(tail)
+    except ValueError:
+        return action
+    return f"{head} {'+' if value > 0 else '-'}"
+
+
 def _worst_summary(result: DistanceResult, k: int = 5) -> list[dict[str, float | str]]:
     return [
         {
@@ -268,8 +293,8 @@ def run_loop(
         new_features = analyze(rendered)
         new_result = distance(new_features, target, norm=norm)
 
-        if new_result.score >= state.distance.score:
-            state.tried_and_failed.add(proposal.action)
+        if new_result.score >= state.distance.score and proposal.action:
+            state.tried_and_failed.add(direction_key(proposal.action))
 
         state.history.append(
             StepRecord(

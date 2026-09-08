@@ -48,6 +48,10 @@ class MemoryEntry:
     score_before: float
     #: ``None`` until the render has been measured on the following turn.
     score_after: float | None = None
+    #: Whether the move beat the best score of the run so far, as opposed to
+    #: merely beating the step before it. The supervisor counts strikes on
+    #: this; the specialist is shown the simpler comparison.
+    improved_best: bool = False
 
     @property
     def settled(self) -> bool:
@@ -86,10 +90,20 @@ class MemoryEntry:
 @dataclass
 class WorkingMemory:
     entries: list[MemoryEntry] = field(default_factory=list)
-    #: Consecutive settled turns that failed to improve, per role. The
-    #: supervisor reads this to reroute away from a specialist that is stuck
-    #: rather than letting it spend the whole budget.
+    #: Consecutive settled turns that failed to beat the best score *ever*
+    #: seen, per role. The supervisor reads this to reroute away from a
+    #: specialist that is stuck rather than letting it spend the whole budget.
+    #:
+    #: "Beat the best" rather than "beat the previous step", because the
+    #: previous-step rule was measurably evadable. A specialist overshooting
+    #: and correcting produces a sawtooth -- worse, better, worse, better --
+    #: and every recovery reset its strike count, so it held the route for
+    #: seven straight renders while ending no better than it started. Scoring
+    #: against the best-so-far is also what the critic already does, so the two
+    #: now agree about what progress means.
     strikes: dict[Role, int] = field(default_factory=dict)
+    #: Lowest distance seen this run. ``None`` until the first settle.
+    best_score: float | None = None
     #: Attempted calls to tools the role does not own. Counted rather than
     #: merely rejected: the rate is a reported number, because a prompt that
     #: leaks the boundary is a prompt problem and this is how it shows up.
@@ -119,13 +133,25 @@ class WorkingMemory:
         return entry
 
     def settle(self, score_after: float) -> MemoryEntry | None:
-        """Attribute the newly measured score to the most recent open entry."""
+        """Attribute the newly measured score to the most recent open entry.
+
+        Two different notions of "it worked" are recorded, deliberately. What
+        the specialist is *shown* is whether the move beat the step before it,
+        because that is the feedback it can act on. What the *supervisor*
+        counts is whether the move beat the best score of the whole run, which
+        is what stops a sawtooth from holding the route forever.
+        """
         for entry in reversed(self.entries):
-            if not entry.settled:
-                entry.score_after = score_after
-                improved = entry.helped is True
-                self.strikes[entry.role] = 0 if improved else self.strikes.get(entry.role, 0) + 1
-                return entry
+            if entry.settled:
+                continue
+            entry.score_after = score_after
+            baseline = min(entry.score_before, self.best_score or entry.score_before)
+            entry.improved_best = score_after < baseline
+            self.best_score = min(baseline, score_after)
+            self.strikes[entry.role] = (
+                0 if entry.improved_best else self.strikes.get(entry.role, 0) + 1
+            )
+            return entry
         return None
 
     def strikes_for(self, role: Role) -> int:

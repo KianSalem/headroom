@@ -16,10 +16,10 @@ from typing import Any
 
 import numpy as np
 import pytest
-from evals import report
+from evals import briefs, report
 from evals.degradations import make_degradation
 
-from headroom.agent import roles, supervisor, tools
+from headroom.agent import brief, roles, supervisor, tools
 from headroom.agent.briefing import build as build_briefing
 from headroom.agent.cassette import Cassette, CassetteMissError, Mode, digest
 from headroom.agent.client import LLMSpecialist, ModelClient, ModelConfig
@@ -37,7 +37,7 @@ from headroom.control.state import AbortReason, LoopState, RunTrace, StepRecord,
 from headroom.dsp.backends.pedalboard import clear_cache, render_chain
 from headroom.dsp.chain import Chain
 from headroom.dsp.ops import EqOp, OpKind, StereoWidthOp, op_gain, op_limiter
-from headroom.target.distance import SCORED, distance
+from headroom.target.distance import FAMILY_WEIGHTS, SCORED, SPEC_BY_NAME, distance, to_scored
 from headroom.target.profile import TargetProfile
 
 from .conftest import SR
@@ -1044,3 +1044,373 @@ def test_the_specialist_table_is_omitted_when_no_agent_ran() -> None:
     trace = _fake_trace("heuristic", ())
     assert report.render_roles([trace]) == ""
     assert report.agent_systems([trace]) == []
+
+
+def test_a_sawtooth_cannot_evade_the_reroute_rule() -> None:
+    """Regression, found by watching a real run rather than by reasoning.
+
+    Scoring strikes against the previous step let a specialist that overshoots
+    and corrects hold the route indefinitely: worse, better, worse, better, and
+    every recovery reset the count. It kept the route for seven straight
+    renders and ended no better than it started.
+    """
+    memory = WorkingMemory()
+    for step, (before, after) in enumerate([(1.0, 1.2), (1.2, 1.05), (1.05, 1.3)]):
+        memory.open(
+            step=step,
+            role=Role.EQ,
+            targeted=(),
+            actions=(f"eq.band1 +{step + 1}.000",),
+            rationale="",
+            score_before=before,
+        )
+        memory.settle(after)
+    # Every one of those failed to beat the 1.0 the run started from.
+    assert memory.strikes_for(Role.EQ) == 3
+    assert memory.best_score == pytest.approx(1.0)
+    # The specialist is still shown the comparison it can act on.
+    assert "BETTER" in memory.render_own(Role.EQ)
+
+
+def test_beating_the_best_clears_the_strikes() -> None:
+    memory = WorkingMemory()
+    memory.open(
+        step=0,
+        role=Role.EQ,
+        targeted=(),
+        actions=("eq.band1 +1.000",),
+        rationale="",
+        score_before=1.0,
+    )
+    memory.settle(1.4)
+    assert memory.strikes_for(Role.EQ) == 1
+    memory.open(
+        step=1,
+        role=Role.EQ,
+        targeted=(),
+        actions=("eq.band1 -2.000",),
+        rationale="",
+        score_before=1.4,
+    )
+    memory.settle(0.6)
+    assert memory.strikes_for(Role.EQ) == 0
+    assert memory.best_score == pytest.approx(0.6)
+
+
+# --- briefs -------------------------------------------------------------------
+
+
+def test_a_brief_becomes_offsets_against_the_audios_own_measurements(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """Relative, not absolute: 'brighter' means brighter than *this*."""
+    original, _ = scene
+    fv = analyze(original)
+    spec = brief.parse(
+        "brighter",
+        {
+            "adjustments": [
+                {"dimension": "band_clr_8", "offset_tol": 2.0, "reason": "brighter"},
+                {"dimension": "band_clr_7", "offset_tol": 1.5, "reason": "brighter"},
+            ],
+            "hold": ["loudness"],
+            "rationale": "top bands up",
+        },
+    )
+    profile = spec.apply_to(fv)
+    scored = to_scored(fv)
+    assert profile.targets["band_clr_8"] == pytest.approx(scored["band_clr_8"] + 2.0 * 0.75)
+    # A held family is pinned where it started.
+    assert profile.targets["lufs_integrated"] == pytest.approx(scored["lufs_integrated"])
+    # Anything unnamed and unheld stays unconstrained, so the metric neither
+    # rewards nor penalizes what happened to it.
+    assert "width_4" not in profile.targets
+
+
+def test_an_invented_dimension_is_recorded_and_dropped() -> None:
+    """One hallucinated name should not throw away an otherwise correct
+    translation, and the rate is worth reporting."""
+    spec = brief.parse(
+        "brighter",
+        {
+            "adjustments": [
+                {"dimension": "sparkle", "offset_tol": 3.0, "reason": "x"},
+                {"dimension": "band_clr_8", "offset_tol": 2.0, "reason": "x"},
+            ],
+            "rationale": "",
+        },
+    )
+    assert spec.rejected == ("sparkle",)
+    assert spec.named() == {"band_clr_8": 2.0}
+
+
+def test_an_offset_inside_the_indifference_band_is_dropped() -> None:
+    """A request smaller than one tolerance would be a constraint that is
+    already satisfied, which costs render budget and buys nothing."""
+    spec = brief.parse(
+        "a touch brighter",
+        {
+            "adjustments": [{"dimension": "band_clr_8", "offset_tol": 0.3, "reason": "x"}],
+            "rationale": "",
+        },
+    )
+    assert spec.adjustments == ()
+
+
+def test_an_out_of_bounds_offset_is_refused() -> None:
+    spec = brief.parse(
+        "MUCH brighter",
+        {
+            "adjustments": [{"dimension": "band_clr_8", "offset_tol": 400.0, "reason": "x"}],
+            "rationale": "",
+        },
+    )
+    assert spec.adjustments == ()
+    assert "band_clr_8" in spec.rejected[0]
+
+
+def test_the_brief_tool_schema_enumerates_only_real_dimensions() -> None:
+    schema = brief.tool_schema()
+    dims = schema["input_schema"]["properties"]["adjustments"]["items"]["properties"]["dimension"]
+    assert set(dims["enum"]) == {s.name for s in SCORED}
+    # Holds accept a family or a single dimension, because briefs are regional
+    # and families are not.
+    holds = set(schema["input_schema"]["properties"]["hold"]["items"]["enum"])
+    assert holds == set(FAMILY_WEIGHTS) | {s.name for s in SCORED}
+
+
+def test_translation_scoring_reads_signs_not_magnitudes() -> None:
+    case = briefs.BriefCase(
+        brief="brighter",
+        expect=(briefs.Expectation("top", briefs.bands(+1, 7, 8)),),
+    )
+    right = brief.BriefTarget(
+        brief="brighter",
+        adjustments=(
+            brief.Adjustment(dimension="band_clr_7", offset_tol=1.0),
+            brief.Adjustment(dimension="band_clr_8", offset_tol=6.0),
+        ),
+    )
+    score, extraneous = briefs.score_translation(case, right)
+    assert score == 1.0
+    assert extraneous == ()
+
+    backwards = brief.BriefTarget(
+        brief="brighter",
+        adjustments=(
+            brief.Adjustment(dimension="band_clr_7", offset_tol=-2.0),
+            brief.Adjustment(dimension="band_clr_8", offset_tol=2.0),
+            brief.Adjustment(dimension="lufs_integrated", offset_tol=3.0),
+        ),
+    )
+    # One band the right way and one the wrong way fails the region outright:
+    # that is what stops region matching from becoming a free pass.
+    score, extraneous = briefs.score_translation(case, backwards)
+    assert score == 0.0
+    assert extraneous == ("lufs_integrated",)
+
+
+def test_execution_scoring_requires_an_audible_move() -> None:
+    case = briefs.BriefCase(
+        brief="brighter", expect=(briefs.Expectation("top", {"band_clr_8": +1}),)
+    )
+    target = brief.BriefTarget(brief="brighter")
+    before = {"band_clr_8": 0.0}
+    score, detail = briefs.score_execution(case, target, before, {"band_clr_8": 0.75 * 2.0})
+    assert score == 1.0
+    # Inside the indifference band is not a success.
+    score, _ = briefs.score_execution(case, target, before, {"band_clr_8": 0.75 * 0.2})
+    assert score == 0.0
+    # Right dimension, wrong way.
+    score, _ = briefs.score_execution(case, target, before, {"band_clr_8": -0.75 * 2.0})
+    assert score == 0.0
+    assert "top" in detail
+
+
+def test_collateral_scoring_exempts_what_the_brief_itself_asked_for() -> None:
+    """'Louder without squashing the dynamics' protects dynamics and asks for
+    loudness. A protected family must not veto the request inside it."""
+    case = briefs.BriefCase(
+        brief="louder",
+        expect=(briefs.Expectation("level", {"lufs_integrated": +1}),),
+        protect=("loudness", "dynamics"),
+    )
+    before = {s.name: 0.0 for s in SCORED}
+    after = dict(before)
+    after["lufs_integrated"] = 6.0  # the request itself, exempt
+    score, detail = briefs.score_collateral(case, before, after)
+    assert score == 1.0
+    assert detail == {}
+
+    after["crest_factor_db"] = 5.0  # collateral damage, not exempt
+    score, detail = briefs.score_collateral(case, before, after)
+    assert score < 1.0
+    assert "crest_factor_db" in detail
+
+
+def test_every_brief_case_has_a_physically_checkable_signature() -> None:
+    """The signatures are facts about the measurements. A typo here would
+    silently grade the system against the wrong thing."""
+    for case in briefs.CASES:
+        assert case.expect, case.brief
+        for expectation in case.expect:
+            assert expectation.want, f"{case.brief}: {expectation.label}"
+            assert 1 <= expectation.need <= len(expectation.want)
+            for dim, sign in expectation.want.items():
+                assert dim in SPEC_BY_NAME, f"{case.brief}: {dim}"
+                assert sign in (-1, 1)
+        # No two expectations may demand opposite directions on one dimension,
+        # which would make the case unsatisfiable.
+        for a in case.expect:
+            for b in case.expect:
+                if a is b:
+                    continue
+                for dim in set(a.want) & set(b.want):
+                    assert a.want[dim] == b.want[dim], f"{case.brief}: contradictory on {dim}"
+        for family in case.protect:
+            assert family in FAMILY_WEIGHTS, f"{case.brief}: {family}"
+            # A protection over a family every expectation already moves would
+            # be vacuous.
+            in_family = {s.name for s in SCORED if s.family == family}
+            assert in_family - case.named_dims(), f"{case.brief}: {family} fully exempt"
+
+
+def test_a_brief_runs_end_to_end_against_a_stub_translator(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """The whole path with no key: translate, constrain, run the loop, render,
+    and score all three questions."""
+    original, _ = scene
+    case = briefs.BriefCase(
+        brief="brighter and more open up top",
+        expect=(briefs.Expectation("top bands", briefs.bands(+1, 7, 8)),),
+        protect=("loudness",),
+    )
+
+    def stub(text: str, features: object) -> tuple[brief.BriefTarget, object]:
+        return (
+            brief.BriefTarget(
+                brief=text,
+                adjustments=(
+                    brief.Adjustment(dimension="band_clr_7", offset_tol=2.0, reason="up top"),
+                    brief.Adjustment(dimension="band_clr_8", offset_tol=2.0, reason="up top"),
+                ),
+                hold=("loudness",),
+                rationale="top bands up, level pinned",
+            ),
+            None,
+        )
+
+    clear_cache()
+    result = briefs.run_case(
+        case,
+        original,
+        stub,
+        scaffold_supervisor().propose,
+        system="agent-scaffold",
+        config=BUDGET,
+    )
+    assert not result.error, result.error
+    assert result.translation_score == 1.0
+    assert result.execution_score == 1.0, result.detail
+    assert result.collateral_score == 1.0, result.detail
+    assert result.passed
+    assert result.trace is not None
+    assert result.trace.total_cost_usd == 0.0
+    assert "translation" in briefs.render_markdown([result])
+
+
+def test_a_translation_that_names_nothing_is_a_result_not_a_crash(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    original, _ = scene
+    case = briefs.BriefCase(
+        brief="make it good", expect=(briefs.Expectation("top", {"band_clr_8": +1}),)
+    )
+
+    def empty(text: str, features: object) -> tuple[brief.BriefTarget, object]:
+        return brief.BriefTarget(brief=text, rationale="nothing measurable here"), None
+
+    result = briefs.run_case(case, original, empty, scaffold_supervisor().propose)
+    assert result.error
+    assert result.trace is None
+    assert not result.passed
+
+
+def test_a_translator_that_raises_is_a_result_not_a_crash(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    original, _ = scene
+    case = briefs.BriefCase(
+        brief="brighter", expect=(briefs.Expectation("top", {"band_clr_8": +1}),)
+    )
+
+    def broken(text: str, features: object) -> tuple[brief.BriefTarget, object]:
+        raise RuntimeError("the API fell over")
+
+    result = briefs.run_case(case, original, broken, scaffold_supervisor().propose)
+    assert "translation failed" in result.error
+
+
+def test_adjustments_arriving_as_a_json_string_are_repaired() -> None:
+    """A real tool-use quirk. The strict reading threw away a translation that
+    was otherwise exactly right, turning a model quirk into a scored
+    comprehension failure."""
+    spec = brief.parse(
+        "narrower",
+        {
+            "adjustments": (
+                '[{"dimension": "correlation_z", "offset_tol": 3.0, "reason": "in"},'
+                ' {"dimension": "width_7", "offset_tol": -3.0, "reason": "in"}]'
+            ),
+            "rationale": "narrow it",
+        },
+    )
+    assert spec.repaired_json is True
+    assert spec.named() == {"correlation_z": 3.0, "width_7": -3.0}
+
+
+def test_unrepairable_arguments_stay_empty_rather_than_raising() -> None:
+    spec = brief.parse("x", {"adjustments": "not json at all", "rationale": ""})
+    assert spec.adjustments == ()
+    assert spec.repaired_json is False
+
+
+def test_holding_a_dimension_the_brief_also_moves_lets_the_move_win() -> None:
+    """A contradiction the model does produce. Keeping both would pin the value
+    the request wanted changed, which reads downstream as an unsatisfiable
+    target."""
+    spec = brief.parse(
+        "wider up top, tight underneath",
+        {
+            "adjustments": [{"dimension": "width_7", "offset_tol": 2.5, "reason": "wider"}],
+            "hold": ["width_7", "width_0", "stereo"],
+            "rationale": "",
+        },
+    )
+    assert "width_7" not in spec.hold
+    assert set(spec.hold) == {"width_0", "stereo"}
+
+
+def test_a_dimension_hold_pins_only_that_dimension(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """Briefs are regional and families are not: 'keep the low end tight' has
+    to be expressible without forbidding the widening it accompanies."""
+    original, _ = scene
+    fv = analyze(original)
+    spec = brief.parse(
+        "wider up top, tight underneath",
+        {
+            "adjustments": [{"dimension": "width_7", "offset_tol": 2.5, "reason": "wider"}],
+            "hold": ["width_0", "width_1", "mono_compat_db"],
+            "rationale": "",
+        },
+    )
+    targets = spec.apply_to(fv).targets
+    scored = to_scored(fv)
+    assert targets["width_0"] == pytest.approx(scored["width_0"])
+    assert targets["mono_compat_db"] == pytest.approx(scored["mono_compat_db"])
+    assert targets["width_7"] > scored["width_7"]
+    # ...and the rest of the stereo family is left free.
+    assert "width_4" not in targets

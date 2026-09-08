@@ -85,6 +85,15 @@ supervisor does own is harder and still deterministic: rerouting around a stuck
 role, accepting "nothing I own can move this" as an answer, refusing a render
 whose chain is audibly unchanged, and canonicalizing op order.
 
+**Two control bugs were found by running the system, not by reasoning about
+it, and both are now regression tests.** Two dimensions driving the same
+control alternated between turns and oscillated, because the collapse rule kept
+whichever request was larger; averaging the requested deltas fixes that without
+double-correcting near-duplicate dimensions. And strike counting against the
+previous step let a specialist that overshoots and corrects hold the route
+indefinitely -- a sawtooth resets the count on every recovery -- so strikes now
+count against the best score of the run, which is what the critic already did.
+
 **An `agent-scaffold` system was added as a controlled ablation.** Not in the
 spec. It is the full architecture — supervisor, tool layer, working memory,
 critic — with a proportional policy where the model goes, using the heuristic's
@@ -161,7 +170,22 @@ The agent evaluation is engineered to run for a few dollars.
   the optimizer ceiling and the agent scaffold are pure arithmetic. `headroom
   eval` defaults to exactly those, so a fresh clone reproduces a full results
   table with no credential.
-- Agent runs default to Haiku 4.5 with a 14-render cap, prompt caching on the
-  role prompt and tool schemas, and render and measurement memoization.
+- Agent runs default to **Haiku 4.5**, and that is a measured choice rather
+  than a budget concession. On the same cell Sonnet 5 cost 3.2x as much
+  ($0.098 against $0.031) for slightly *worse* recovery (+0.764 against
+  +0.799): it spent 2.6x the output tokens, stayed on one specialist for seven
+  straight renders and overshot repeatedly. The task is arithmetic over a
+  six-row table, and it does not reward a larger model.
+- **Prompt caching is declared but does not engage on Haiku 4.5.** A cache
+  breakpoint only takes effect once the prefix clears a per-model minimum, and
+  the ~2.3k-token role prefix is under it: probing with the real prefix
+  returned zero cache writes on every TTL, while quadrupling it wrote and then
+  read an entry. It does engage on Sonnet 5, which has a lower threshold. The
+  declaration is left in place because it costs nothing when inert and starts
+  paying with no code change; the hit rate is reported either way. Padding the
+  prompt to clear a cache threshold was considered and rejected.
+- Cache writes are priced by TTL. A 1-hour entry costs 2x the input rate
+  against 1.25x for a 5-minute one, and an evaluation reuses one prefix for as
+  long as the matrix takes, so 1 hour is the right TTL and the right price.
 - A missing price raises rather than defaulting to zero: a cost of $0.00 is the
   most misleading number this project could print.

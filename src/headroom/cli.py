@@ -21,7 +21,7 @@ from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
 from headroom import __version__
 from headroom.agent.client import DEFAULT_MODEL
 from headroom.analysis.features import analyze
-from headroom.audio import load, save
+from headroom.audio import AudioBuffer, load, save
 from headroom.dsp.backends.pedalboard import render_chain
 from headroom.dsp.chain import Chain
 from headroom.target.distance import distance
@@ -84,12 +84,37 @@ def _target_for(args: argparse.Namespace) -> TargetProfile:
     return TargetProfile.from_preset(args.target)
 
 
+def _brief_target(args: argparse.Namespace, source: AudioBuffer) -> TargetProfile:
+    """Translate a natural-language brief into a target, then print it.
+
+    Printed because this is the one step in the system a person cannot check by
+    listening: if the translation read "brighter" as "louder", the master will
+    be wrong in a way that sounds deliberate.
+    """
+    from headroom.agent.client import BriefTranslator, ModelClient, ModelConfig
+    from headroom.agent.factory import cassette_for
+
+    config = ModelConfig(model=args.model, effort=args.effort)
+    translator = BriefTranslator(
+        client=ModelClient(config=config, cassette=cassette_for(config.model))
+    )
+    spec, usage = translator(args.brief, analyze(source))
+    sys.stdout.write(spec.describe() + "\n")
+    if spec.rationale:
+        sys.stdout.write(f"  reading: {spec.rationale}\n")
+    sys.stdout.write(f"  translation cost {usage.input_tokens} in / {usage.output_tokens} out\n\n")
+    if not spec.adjustments:
+        raise SystemExit("the brief did not translate into anything measurable")
+    profile = spec.apply_to(analyze(source), label=f"brief:{args.brief[:32]}")
+    return profile.with_loudness(args.target) if args.target else profile
+
+
 def _cmd_master(args: argparse.Namespace) -> int:
     from headroom.control.critic import CriticConfig
     from headroom.control.loop import run_loop
 
     source = load(args.input)
-    target = _target_for(args)
+    target = _brief_target(args, source) if args.brief else _target_for(args)
     config = CriticConfig(render_budget=args.budget)
 
     if args.system in AGENT_SYSTEMS:
@@ -268,6 +293,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_master.add_argument("input")
     p_master.add_argument("output")
     p_master.add_argument("--reference", help="match this file's sonic profile")
+    p_master.add_argument(
+        "--brief",
+        help=(
+            "a natural-language request, e.g. 'more space but keep the low end "
+            "tight'. Translated into measurable offsets by a single bounded model "
+            "call; the loop and the metric are unchanged."
+        ),
+    )
     p_master.add_argument(
         "--target",
         choices=sorted(PRESETS),

@@ -23,6 +23,15 @@ mirrors what a competent engineer does. It is also the honest weakness: with a
 finite render budget, a coupled degradation with six bad features cannot be
 fixed one feature at a time, which is precisely where coordinating moves
 should start to earn its cost.
+
+*It backs out of a move that did not work.* A correction whose direction made
+the distance worse is not retried in that direction, and the controller routes
+to the next largest contributor instead. Without this it added compression
+seven renders in a row on ``over_compress`` while the distance climbed
+monotonically -- a compressor with no make-up gain lowers loudness faster than
+it lowers peaks, so compressing *raised* the crest factor it was trying to
+lower. Leaving that in would have made the baseline a strawman, and the
+architecture's headline result an artefact of it.
 """
 
 from __future__ import annotations
@@ -30,7 +39,7 @@ from __future__ import annotations
 from typing import Final
 
 from headroom.analysis.spectral import BAND_EDGES, N_BANDS
-from headroom.control.loop import Proposal
+from headroom.control.loop import Proposal, direction_key
 from headroom.control.state import LoopState
 from headroom.dsp.chain import Chain
 from headroom.dsp.ops import (
@@ -245,7 +254,7 @@ def propose(state: LoopState) -> Proposal:
         chain, action = _correct(state, candidate)
         if not action or abs(float(action.rsplit(" ", 1)[1])) < _EPS:
             continue
-        if action in state.tried_and_failed:
+        if direction_key(action) in state.tried_and_failed:
             continue
         return Proposal(chain=chain, action=action, note=f"targeting {candidate.name}")
 

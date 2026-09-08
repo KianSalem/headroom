@@ -411,6 +411,29 @@ def _plan_loudness(briefing: Briefing, chain: Chain) -> Plan:
     return plan
 
 
+def _direction_of(edit: PlannedEdit) -> str:
+    """The edit's ``"<parameter> <sign>"`` identity, matching what the loop
+    records when a move fails."""
+    return f"{_ACTION_OF[edit.tool](edit)} {'+' if edit.delta > 0 else '-'}"
+
+
+#: How each tool's edit maps onto the action parameter name the loop records.
+#: Kept beside the planners because the two must agree: a mismatch would mean
+#: the specialist silently ignores the failed-move set.
+_ACTION_OF: Final[dict[str, Any]] = {
+    "set_gain": lambda e: "gain.gain_db",
+    "set_limiter": lambda e: "limiter.ceiling",
+    "set_eq_band": lambda e: f"eq.band{e.extra['band_index']}",
+    "set_compressor": lambda e: "comp.ratio",
+    "set_expander": lambda e: "exp.ratio",
+    "set_stereo_width": lambda e: (
+        "width.global"
+        if e.extra.get("band_index") is None
+        else f"width.band{e.extra['band_index']}"
+    ),
+}
+
+
 def merge_plan(plan: Plan, max_edits: int) -> tuple[list[tuple[str, Mapping[str, Any]]], list[str]]:
     """Combine edits that write the same control, then emit absolute calls.
 
@@ -463,6 +486,11 @@ class ProportionalSpecialist:
 
     def __call__(self, briefing: Briefing, chain: Chain) -> SpecialistTurn:
         plan = cast(Plan, _PLANNERS[self.role](briefing, chain))
+        # The same rule the heuristic gets, so the ablation stays controlled: a
+        # move whose direction already made the distance worse is not retried
+        # in that direction.
+        blocked = set(briefing.tried_and_failed)
+        plan = [e for e in plan if _direction_of(e) not in blocked]
         calls, reasons = merge_plan(plan, self.max_edits)
         self.last_plan = reasons
         if not calls:

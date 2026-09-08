@@ -28,8 +28,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from headroom.analysis.features import FeatureVector
 from headroom.dsp.chain import Chain
+from headroom.target.distance import SPEC_BY_NAME, to_scored
 
+from .brief import TOOL_NAME as BRIEF_TOOL_NAME
+from .brief import BriefTarget
+from .brief import parse as parse_brief
+from .brief import system_prompt as brief_system_prompt
+from .brief import tool_schema as brief_tool_schema
 from .briefing import Briefing, role_system_prompt
 from .cassette import Cassette, Mode
 from .pricing import Usage, cost_usd
@@ -69,6 +76,19 @@ class ModelConfig:
     thinking: bool = False
     thinking_budget: int = 1024
     #: Cache the role prompt and tool schemas. ``""`` disables it.
+    #:
+    #: Measured, not assumed: a cache breakpoint only engages once the prefix
+    #: clears a per-model minimum, and on Haiku 4.5 that minimum is above this
+    #: system's ~2.3k-token role prefix -- probing it with the real prefix
+    #: returned zero cache writes on every TTL, while quadrupling the prefix
+    #: wrote and then read an entry. So on Haiku this setting costs nothing and
+    #: buys nothing, and it starts paying on a model with a lower threshold
+    #: without a code change. The hit rate is in the client's reported stats
+    #: either way, which is how the claim stays checkable rather than assumed.
+    #:
+    #: A 1-hour entry is the right TTL for an evaluation, which reuses one
+    #: prefix for as long as the matrix takes, and it is priced accordingly --
+    #: see ``pricing.CACHE_WRITE_MULTIPLIER_1H``.
     cache_ttl: str = "1h"
     #: Tool round-trips inside one round. Three is enough to recover from a
     #: rejected call and still finish; more just pays for indecision.
@@ -206,7 +226,8 @@ class ModelClient:
             "input_tokens": self.usage.input_tokens,
             "output_tokens": self.usage.output_tokens,
             "cache_read_tokens": self.usage.cache_read_tokens,
-            "cache_write_tokens": self.usage.cache_write_tokens,
+            "cache_write_5m_tokens": self.usage.cache_write_5m_tokens,
+            "cache_write_1h_tokens": self.usage.cache_write_1h_tokens,
             "cost_usd": round(self.cost, 6),
             "cassette": self.cassette.stats() if self.cassette else None,
         }
@@ -214,11 +235,21 @@ class ModelClient:
 
 def _usage_of(response: dict[str, Any]) -> Usage:
     raw = response.get("usage") or {}
+    total_writes = int(raw.get("cache_creation_input_tokens") or 0)
+    # The API reports cache writes both as a total and, when it has the
+    # breakdown, split by TTL. The two are priced differently, so the split is
+    # preferred and the total is only a fallback.
+    breakdown = raw.get("cache_creation") or {}
+    write_1h = int(breakdown.get("ephemeral_1h_input_tokens") or 0)
+    write_5m = int(breakdown.get("ephemeral_5m_input_tokens") or 0)
+    if write_1h + write_5m == 0:
+        write_5m = total_writes
     return Usage(
         input_tokens=int(raw.get("input_tokens") or 0),
         output_tokens=int(raw.get("output_tokens") or 0),
         cache_read_tokens=int(raw.get("cache_read_input_tokens") or 0),
-        cache_write_tokens=int(raw.get("cache_creation_input_tokens") or 0),
+        cache_write_5m_tokens=write_5m,
+        cache_write_1h_tokens=write_1h,
     )
 
 
@@ -232,6 +263,20 @@ def _text_of(response: dict[str, Any]) -> str:
 
 def _tool_uses(response: dict[str, Any]) -> list[dict[str, Any]]:
     return [b for b in response.get("content", []) if b.get("type") == "tool_use"]
+
+
+def _result_text(record: ToolRecord) -> str:
+    """What a tool result says back to the model.
+
+    A failure gets the whole structured payload: the field, the value and the
+    bound are what it needs to recover. A success gets one short line. The
+    payload's readable chain description is useful in a trace and useless here,
+    and every byte of it is re-billed on the next round-trip -- the round where
+    a specialist made six edits cost 11k input tokens before this.
+    """
+    if not record.ok:
+        return json.dumps(record.payload, default=str)[:1200]
+    return f"ok: {record.action}"
 
 
 def _assistant_echo(response: dict[str, Any]) -> list[dict[str, Any]]:
@@ -320,7 +365,7 @@ class LLMSpecialist:
                         {
                             "type": "tool_result",
                             "tool_use_id": use.get("id", ""),
-                            "content": json.dumps(record.payload, default=str)[:2000],
+                            "content": _result_text(record),
                             "is_error": not record.ok,
                         }
                         for use, record in zip(uses, new_records, strict=False)
@@ -343,3 +388,57 @@ class LLMSpecialist:
             model=self.client.config.model,
             n_llm_calls=calls_made,
         )
+
+
+@dataclass
+class BriefTranslator:
+    """Turns a natural-language brief into a measurable target.
+
+    One call, one forced tool, one bounded output. The model is not given the
+    audio, is not given any processing tools, and cannot score anything: it
+    reads a table of measurements and emits signed offsets against dimensions
+    the deterministic metric already defines. The loop and the metric are
+    unchanged downstream, which is what makes the result gradable.
+    """
+
+    client: ModelClient
+
+    def __call__(self, brief: str, fv: FeatureVector) -> tuple[BriefTarget, Usage]:
+        response, usage, _ = self.client.call(
+            system=brief_system_prompt(),
+            tools=[brief_tool_schema()],
+            messages=[{"role": "user", "content": _brief_message(brief, fv)}],
+            tool_choice={"type": "tool", "name": BRIEF_TOOL_NAME},
+        )
+        for block in _tool_uses(response):
+            if block.get("name") == BRIEF_TOOL_NAME:
+                return parse_brief(brief, dict(block.get("input") or {})), usage
+        raise ModelError(f"the translation call returned no {BRIEF_TOOL_NAME} call")
+
+
+def _brief_message(brief: str, fv: FeatureVector) -> str:
+    """The brief plus where the audio currently sits.
+
+    The offsets are relative, so in principle the current values are not
+    needed. They are supplied anyway because they are what lets the model
+    notice that the brief is asking for something the audio already has, or
+    asking to widen something already at the top of its range -- and because
+    "brighter" from a dull starting point is a bigger ask than from a bright
+    one.
+    """
+    scored = to_scored(fv)
+    rows = [
+        f"  {name:18s} {scored[name]:+9.3f} {SPEC_BY_NAME[name].unit:9s} "
+        f"(tolerance {SPEC_BY_NAME[name].tolerance:g})"
+        for name in sorted(scored)
+    ]
+    return "\n".join(
+        [
+            f"Brief: {brief}",
+            "",
+            "Where the audio sits now:",
+            *rows,
+            "",
+            "Translate the brief into offsets against these values.",
+        ]
+    )
