@@ -71,6 +71,18 @@ def _cmd_corpus(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_synth(args: argparse.Namespace) -> int:
+    from evals.synthetic import write_corpus
+
+    files = write_corpus(args.out, seconds=args.seconds)
+    sys.stdout.write(f"wrote {len(files)} synthetic tracks to {args.out}\n")
+    sys.stdout.write(
+        "These are for exercising the pipeline, not for results: they are "
+        "stationary and much easier to repair than real music.\n"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="headroom", description=__doc__)
     parser.add_argument("--version", action="version", version=f"headroom {__version__}")
@@ -97,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_compare.set_defaults(func=_cmd_compare)
 
     sub.add_parser("presets", help="list delivery targets").set_defaults(func=_cmd_presets)
+
+    p_synth = sub.add_parser(
+        "synth-corpus", help="generate a synthetic corpus so the pipeline runs offline"
+    )
+    p_synth.add_argument("--out", default="audio/synthetic")
+    p_synth.add_argument("--seconds", type=float, default=24.0)
+    p_synth.set_defaults(func=_cmd_synth)
 
     p_corpus = sub.add_parser("corpus", help="build a train/test manifest from a directory")
     p_corpus.add_argument("root")
