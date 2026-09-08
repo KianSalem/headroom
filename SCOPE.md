@@ -198,28 +198,58 @@ Three things that cost real time and are worth writing down:
   thin evidence — and `lra` is exactly where the architecture showed its
   largest win. It is kept for proving the pipeline runs, not for quoting.
 
-### The synthetic corpus flatters everything, measured
+### How the synthetic corpus actually differs, measured
 
 `headroom corpus-stats` exists so that this is a number rather than a caveat.
-Both test splits, as the loop actually sees them:
+**Six tracks each, both clipped to the same 6.8 s**, because the first version
+of this table did not hold clip length constant and got a result badly wrong
+— see below.
 
-| | synthetic | real music |
-|---|---|---|
-| `lra` | 0.03 LU | **1.96 LU** |
-| `plr` | 8.94 dB | 12.92 dB |
-| `spectral_flatness` | 0.329 | **0.004** |
-| `spectral_centroid` | 4008 Hz | 753 Hz |
-| `spectral_tilt` | −0.50 dB/oct | −5.34 dB/oct |
-| `correlation` | +0.32 | +0.70 |
-| `mono_compat_db` | −3.24 dB | −0.86 dB |
-| `attack_time_p50` | 8.0 ms | 20.6 ms |
-| `percussive_ratio` | 0.043 | **0.255** |
+| | synthetic | real music | robust? |
+|---|---|---|---|
+| `spectral_flatness` | 0.273 | **0.004** | yes, 68× |
+| `spectral_centroid` | 3213 Hz | 752 Hz | yes |
+| `spectral_tilt` | −0.43 dB/oct | **−5.34 dB/oct** | yes |
+| `percussive_ratio` | 0.025 | **0.255** | yes, 10× |
+| `attack_time_p50` | 9.5 ms | 20.2 ms | yes |
+| `plr` | 9.54 dB | 12.92 dB | yes |
+| `mono_compat_db` | −2.72 dB | −0.86 dB | yes |
+| `correlation` | +0.48 (−0.50 … +0.96) | +0.70 (+0.49 … +0.89) | yes |
+| `lra` | 1.74 LU | 1.97 LU | **no — see below** |
 
-The synthetic corpus is 65× more stationary, noise-like where music is tonal,
-and has a sixth of the transient energy. One synthetic track even has
-*negative* stereo correlation, which no mix would. Every deterministic
-controller in the table benefits from that, because a proportional response to
-a stationary signal is close to solving the problem analytically.
+So the real difference is **spectrum and transients**, not loudness movement:
+synthetic material is noise-like where music is tonal, nearly flat where music
+falls 5 dB per octave, and carries a tenth of the transient energy. One
+synthetic track has *negative* stereo correlation, which no mix would. A
+proportional controller inverting a known op on a signal like that is close to
+solving the problem analytically, which is why every deterministic system in
+the table does well on it.
+
+### A number this document got wrong, and why
+
+An earlier version of the table above claimed the synthetic corpus was **65×
+more stationary** than real music: `lra` 0.03 LU against 1.96 LU. That
+comparison was invalid. The synthetic figure was measured on 20 s clips and
+the real one on 6.8 s clips, so it conflated the material with the clip
+length. Measured properly — same six-track count, same 6.8 s — it is 1.74
+against 1.97, which is no meaningful difference at all.
+
+The cause is worth knowing, because it is a property of the measurement rather
+than of the audio. `lra` is built from 3 s short-term windows on a 1 s hop, and
+K-weighting takes time to settle, so the first window of any clip is an
+outlier. At 20 s there are about eighteen windows and one outlier barely moves
+the 10th percentile; at 6.8 s there are about four and it dominates them. A
+held sine tone measures `lra` 0.94 LU at 6.8 s purely from filter settling.
+
+Two consequences, both acted on:
+
+- The `musdb18-7s` variant cannot support `lra`, and therefore cannot support
+  the dynamics role, which is why the 4.68 GB full-length archive is the
+  default and the excerpts are labelled as pipeline-proving only.
+- Any cross-corpus comparison has to hold clip length constant. The
+  real-music table is accompanied by a synthetic run at the same clip length
+  and the same cell count, so that "real music changed the result" is a claim
+  about material rather than about window counts.
 
 Demo audio for the report comes from separately-sourced CC-BY clips committed
 under `audio/demo/`, so hosting them publicly is unambiguous. Real-music
