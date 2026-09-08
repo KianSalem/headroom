@@ -365,19 +365,26 @@ the argument for a routed, bounded, measured loop instead of brute search.
 
 ### On the synthetic corpus, 18 paired cells, 20 s clips
 
+Kept because it is the run the real-music work was checked against, and
+because two of its readings did not survive that check. Neither conclusion
+below should be read on its own — see the four-condition table above.
+
 **The architecture beats the heuristic where coupling exists, and the
 difference is not significant overall.** `agent-scaffold` converges on 89% of
 cells against 72% in a median 2 renders against 4, and the gap concentrates on
 the coupled degradations — `spectral_tilt` +0.985 against +0.695,
 `over_compress` +0.981 against +0.833, tying the optimizer bound on both.
 Across all 18 cells the paired recovery difference is +0.000 at p=0.120.
+*Superseded:* the same condition at 54 cells gives p=0.047. The null result was
+a sample-size artefact.
 
-**The model is significantly worse than the heuristic on numeric targets.**
-The identical architecture with Haiku 4.5 in place of arithmetic: 3 wins, 11
-losses, p=0.025, 44% convergence, 28% oscillation, $0.386. The mechanism is in
-the traces — a deterministic controller has its step size *imposed* by the
-critic, which multiplies every correction by the damping factor, while a model
-is only *told* the factor, and only after oscillation is already detected.
+**The model is significantly worse than the heuristic here** — 3 wins, 11
+losses, p=0.025, 44% convergence, 28% oscillation, $0.386. *Superseded as a
+general claim:* it does not replicate on real music at 20 s (p=0.168). What
+holds across every condition is the step-size mechanism — a deterministic
+controller has its step size *imposed* by the critic, which multiplies every
+correction by the damping factor, while a model is only *told* the factor, and
+only after oscillation is already detected.
 
 **Sonnet 5 is worse and 3.2x the price** on the same cell: +0.764 against
 +0.799, 2.6x the output tokens, one specialist held for seven renders.
