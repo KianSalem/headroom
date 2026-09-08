@@ -14,7 +14,7 @@ numbers a stranger can **reproduce**, not a complete research programme.
 | Analyzer — every feature in SPEC §4 | **done**, validated against analytic signals |
 | DSP chain — typed bounded ops, deterministic render | **done** |
 | Distance metric — tolerance-scaled, per-feature breakdown | **done** |
-| Corpus loader — MUSDB18-HQ, stable train/test split | **done** |
+| Corpus loader — MUSDB18 fetched and MD5-pinned, canonical train/test split | **done** |
 | CLI — `analyze`, `render`, `compare`, `presets`, `corpus` | **done** |
 | CLI — `master`, `eval`, `report` | **done** |
 | Heuristic controller — proportional, damped, no LLM | **done** |
@@ -146,6 +146,15 @@ SIMD dispatch and denormal handling differ. CI asserts bit-identity within a
 platform. Renders are float32 — pedalboard processes in float32 regardless of
 input dtype — which puts the floor near −145 dB, far below anything measured.
 
+**The critic's "freeze the oscillating parameter" tier (SPEC 6.4) is not
+implemented.** The escalation shipped is damp, then abort with a named reason;
+on the routing side the supervisor reroutes around a role that has missed
+twice. The freeze tier was plumbed through the loop state and the briefing
+without ever being populated, which a review caught; the dead plumbing was
+removed rather than left to suggest a behaviour the traces do not contain.
+Implementing it changes agent prompts and therefore every cassette, so it
+waits for the next recorded run.
+
 ## Corpus
 
 Two corpora, and the difference between them is a result in its own right.
@@ -262,10 +271,11 @@ Two consequences, both acted on:
   and the same cell count, so that "real music changed the result" is a claim
   about material rather than about window counts.
 
-Demo audio for the report comes from separately-sourced CC-BY clips committed
-under `audio/demo/`, so hosting them publicly is unambiguous. Real-music
-results are reported as numbers only — no players — because the corpus licence
-is non-commercial.
+Audio for the listening page comes from the synthetic corpus this code
+generates, so hosting it publicly is unambiguous. Real-music results are
+reported as numbers only — no players — because the corpus licence is
+non-commercial, and `headroom report --html` refuses to write audio for any
+manifest not marked redistributable, so that cannot change by accident.
 
 ## What the results actually showed
 
@@ -424,11 +434,13 @@ the heuristic on real music is genuinely unsettled at this sample size.
 ## Cost
 
 The agent evaluation is engineered to run for a few dollars. Total spend to
-produce everything in this repository: **about $2.13**, against a $4.95
-allowance. The two agent evaluation rows are $0.386 (synthetic, 18 cells) and
-$1.272 (real music, 54 cells); the rest is probes, the Sonnet comparison, the
-brief translations, and the README demo. Every one of those calls is committed
-as a cassette, so reproducing all of it costs nothing.
+produce everything in this repository: **about $3.35**, against a $4.95
+allowance. The three agent evaluation rows are $0.386 (synthetic, 18 cells),
+$1.272 (real music, 6.8 s, 54 cells) and $1.204 (real music, 20 s, 54 cells);
+the rest is probes, the Sonnet comparison, the brief translations, and the
+README demo. Every one of those calls on real music is committed as a cassette,
+so reproducing them costs nothing; the original synthetic agent row is the one
+exception, recorded before cassettes were committed (see Known issues).
 
 - **Record/replay cassettes.** Every API call is recorded on first run and
   replayed at zero cost afterwards. Cassettes are committed, so development
@@ -465,3 +477,49 @@ as a cassette, so reproducing all of it costs nothing.
   long as the matrix takes, so 1 hour is the right TTL and the right price.
 - A missing price raises rather than defaulting to zero: a cost of $0.00 is the
   most misleading number this project could print.
+
+## Known issues in v1
+
+Found in a review pass after the results were recorded. Each is left as is
+here, because every committed result and every cassette is downstream of the
+metric: a change to a measured value changes the specialist prompts, which
+changes the cassette digests, which turns every agent row into a cache miss.
+Fixing them and re-running the four conditions plus the bound is the first item
+of the next version. Each is quantified so a reader can judge how much it
+matters.
+
+- **Per-band stereo width leaks out-of-band energy.** `width_i` is meant to be
+  the side/mid power ratio inside band *i*. The implementation scales each
+  band's normalised fraction by the *total* Welch power, including bins below
+  20 Hz and above 20 kHz, so the ratio picks up a factor of
+  (total/in-band)<sub>side</sub> ÷ (total/in-band)<sub>mid</sub>. On the six
+  real-music tracks that factor moves `width_i` by at most 0.004 dB, below the
+  0.001 display precision of the prompts in a few cells and above it in others;
+  on the synthetic corpus, which carries sub-20 Hz content, by up to 0.74 dB.
+  Fix: sum raw band power for mid and side directly.
+- **Attack time is inflated by decaying pre-onset tails.** The 10% crossing is
+  searched from the start of the 10 ms pre-onset window, and the baseline is
+  that window's minimum, so a tail still decaying from the previous hit is
+  already above the 10% threshold and the rise is measured from the window's
+  start. On the real tracks the median attack reads 12–18 ms where a search
+  from the last sub-threshold sample gives 3.5–5.7 ms; on the synthetic tracks
+  10.5 ms against 1.25 ms. `attack_log2_ms` is one of the five dynamics
+  dimensions, the role both controllers are worst at, and this is part of why.
+- **Two stereo corrections differ between the scaffold and the heuristic.**
+  `correlation_z` and `mono_compat_db` share constants and clamps but are
+  applied in dB on the scaffold side and as a linear factor on the heuristic
+  side (a maximum step of 1.78× against 1.5×). The nine per-band `width_i`
+  corrections, and every other role, are identical. The ablation claim is
+  therefore "one designed difference and one incidental one", and is worded
+  that way in the code.
+- **The original synthetic agent row does not replay.** Its 18 cells were
+  recorded to a scratch directory before cassettes were committed, and the
+  prompts have changed since. The traces name the gap in their
+  `system_stats.client.cassette.path` field. The synthetic table is superseded
+  by the real-music runs, all of which replay bit-identically.
+- **The random floors feed the oscillation detector a random sign.** The
+  `random` and `hillclimb` action strings end in a random number purely to
+  satisfy the action format, so roughly 1% of their steps can trip the critic's
+  sign-flip detector. They are floors at +0.000 either way; the fix changes
+  their RNG sequence and so waits for a re-run.
+
