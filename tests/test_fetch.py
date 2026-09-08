@@ -537,3 +537,59 @@ def test_corpus_stats_refuses_a_split_it_has_no_tracks_for(
 
     assert main(["corpus-stats", "--manifest", str(manifest_path), "--split", "train"]) == 2
     assert "no train tracks" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------
+# A fresh clone has the manifest and not the audio. That is normal.
+# --------------------------------------------------------------------------
+
+
+def test_a_manifest_whose_audio_is_absent_names_the_command_that_fetches_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The committed manifests describe audio this repo deliberately lacks.
+
+    MUSDB18 is non-commercial with per-track terms, so the corpus is fetched
+    and never vendored, which makes "manifest present, audio absent" the normal
+    state of a fresh clone. It used to surface four frames deep as a libsndfile
+    'System error'.
+    """
+    from evals.corpus import missing_audio, save_manifest
+
+    from headroom.cli import main
+
+    _write_tone(tmp_path / "t.wav")
+    manifest = scan_directory(tmp_path, corpus_name="fake", test_fraction=1.0)
+    manifest_path = tmp_path / "m.json"
+    save_manifest(manifest, manifest_path)
+    assert missing_audio(manifest) == ()
+
+    (tmp_path / "t.wav").unlink()
+
+    code = main(
+        [
+            "eval",
+            "--manifest",
+            str(manifest_path),
+            "--systems",
+            "null",
+            "--out",
+            str(tmp_path / "o"),
+        ]
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "fetch-corpus" in err
+    assert "synth-corpus" in err
+    assert "not on disk" in err
+
+
+def test_missing_audio_reports_exactly_the_absent_tracks(tmp_path: Path) -> None:
+    from evals.corpus import missing_audio
+
+    for name in ("a", "b"):
+        _write_tone(tmp_path / f"{name}.wav")
+    manifest = scan_directory(tmp_path, corpus_name="fake", test_fraction=1.0)
+    (tmp_path / "a.wav").unlink()
+    absent = missing_audio(manifest)
+    assert [t.track_id for t in absent] == ["a"]

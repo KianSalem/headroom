@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
 
@@ -27,6 +27,13 @@ from headroom.dsp.backends.pedalboard import render_chain
 from headroom.dsp.chain import Chain
 from headroom.target.distance import distance
 from headroom.target.profile import PRESETS, TargetProfile
+
+if TYPE_CHECKING:
+    from evals.corpus import CorpusManifest
+
+
+class CorpusMissingError(RuntimeError):
+    """A manifest names audio that is not on disk. Fetchable, not broken."""
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
@@ -173,12 +180,31 @@ def _cmd_master(args: argparse.Namespace) -> int:
     return 0
 
 
+def _require_corpus(manifest_path: str) -> CorpusManifest:
+    """Load a manifest, or explain that its audio has to be fetched first."""
+    from evals.corpus import load_manifest, missing_audio
+
+    manifest = load_manifest(manifest_path)
+    missing = missing_audio(manifest)
+    if missing:
+        names = ", ".join(t.track_id for t in missing[:3])
+        more = f" (and {len(missing) - 3} more)" if len(missing) > 3 else ""
+        raise CorpusMissingError(
+            f"{manifest_path} names {len(missing)} of {len(manifest.tracks)} tracks "
+            f"that are not on disk: {names}{more}.\n"
+            f"This corpus is fetched rather than committed -- MUSDB18 is "
+            f"non-commercial with per-track terms. Run:\n"
+            f"  headroom fetch-corpus --archive musdb18\n"
+            f"or 'headroom synth-corpus' for the offline synthetic corpus."
+        )
+    return manifest
+
+
 def _cmd_eval(args: argparse.Namespace) -> int:
-    from evals.corpus import load_manifest
     from evals.runner import AgentOptions, run_matrix
 
     report = run_matrix(
-        load_manifest(args.manifest),
+        _require_corpus(args.manifest),
         split=args.split,
         seeds=tuple(range(args.seeds)),
         systems=tuple(args.systems),
@@ -358,10 +384,9 @@ _CHARACTER: Final[tuple[tuple[str, str, str], ...]] = (
 def _cmd_corpus_stats(args: argparse.Namespace) -> int:
     from statistics import median
 
-    from evals.corpus import load_manifest
     from evals.runner import clip
 
-    manifest = load_manifest(args.manifest)
+    manifest = _require_corpus(args.manifest)
     tracks = manifest.test() if args.split == "test" else manifest.train()
     if not tracks:
         sys.stderr.write(f"manifest has no {args.split} tracks\n")
@@ -625,6 +650,9 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"no recording for this request.\n{exc.args[0]}\n")
         return 2
     except ModelError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    except CorpusMissingError as exc:
         sys.stderr.write(f"{exc}\n")
         return 2
     except FetchError as exc:

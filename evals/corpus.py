@@ -217,6 +217,19 @@ def scan_directory(
     )
 
 
+def missing_audio(manifest: CorpusManifest) -> tuple[TrackRecord, ...]:
+    """Tracks the manifest names that are not on disk.
+
+    A committed manifest describes audio this repository deliberately does not
+    contain: MUSDB18 is non-commercial with per-track terms, so the corpus is
+    fetched, never vendored. That makes "manifest present, audio absent" the
+    normal state of a fresh clone rather than an error, and it deserves a
+    sentence telling the reader which command fixes it -- not a libsndfile
+    stack trace from four frames deep.
+    """
+    return tuple(t for t in manifest.tracks if not Path(t.path).exists())
+
+
 def save_manifest(manifest: CorpusManifest, path: str | Path) -> None:
     """Write the manifest with track paths stored *relative to it*.
 

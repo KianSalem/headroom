@@ -387,12 +387,18 @@ Every API call is recorded to a cassette committed in [`cassettes/`](cassettes/)
 agent row reproduces at zero cost and with no key. That is verified rather than claimed:
 
 ```
+$ headroom fetch-corpus --archive musdb18-7s     # the audio is fetched, never vendored
 $ ANTHROPIC_API_KEY="" HEADROOM_CASSETTE_MODE=replay \
     headroom eval --manifest results/corpus_manifest_musdb18_7s.json --systems agent
 54 traces, 0 cells skipped, 54/54 fully replayed
 345 cassette hits, 0 misses, actual spend $0.0000 (recorded cost $1.2717)
 recovery mismatches against the committed traces: 0 of 54 — bit-identical
 ```
+
+The fetch is the one step that cannot be skipped: MUSDB18 is non-commercial with per-track
+terms, so this repository ships the manifest and the digest, not the audio. Skipping it is a
+common enough first move that it has its own error message naming the command, rather than a
+libsndfile failure four frames down.
 
 The cassettes are the API traffic verbatim, which makes the directory a readable record of
 every prompt the system has ever sent — and means a test asserts across all 510 of them that
