@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Final
 
 from headroom.audio import AudioBuffer, save
+from headroom.control.critic import DEFAULT_CONFIG
 from headroom.control.state import RunTrace
 
 from .report import ResultsTable, aggregate, paired
@@ -134,11 +135,13 @@ def write_audio(buf: AudioBuffer, path: Path) -> Path:
     someone hear the result, which is the point.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    wav = path.with_suffix(".wav")
+    # Appended, not with_suffix(): track ids keep their dots ("M.E.R.C. Music"),
+    # and with_suffix would truncate every player for that track to one file.
+    wav = path.with_name(path.name + ".wav")
     save(buf, wav, subtype="PCM_16")
     if not _have_ffmpeg():
         return wav
-    mp3 = path.with_suffix(".mp3")
+    mp3 = path.with_name(path.name + ".mp3")
     try:
         subprocess.run(
             ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-b:a", MP3_BITRATE, str(mp3)],
@@ -344,9 +347,9 @@ deterministic feature vector. <code>recovery</code> is
 <code>1 - final/initial</code> distance: 1.0 is a perfect repair, 0 is no
 progress, negative means the system made the audio worse.
 <code>optimizer</code> is a measured upper bound rather than a competitor &mdash;
-it gets hundreds of renders instead of {table.overall[0].renders_median:.0f} and is
-seeded with the other systems' answers, so it says what was achievable, not what
-is practical.</p>
+it gets hundreds of renders instead of the {DEFAULT_CONFIG.render_budget}-render
+budget every other system shares, and is seeded with their answers, so it says
+what was achievable, not what is practical.</p>
 {incomparable}
 
 <h2>Overall</h2>
@@ -400,7 +403,8 @@ lossless render.</p>
 <div class="panel">
 <p class="note">{_esc(corpus_note) if corpus_note else "Corpus not recorded."}</p>
 <p class="note">{len(traces)} traces &middot;
-git <code>{_esc(sorted(table.git_shas)[0] if table.git_shas else "unknown")}</code> &middot;
+git <code>{_esc(", ".join(sorted(table.git_shas)) if table.git_shas else "unknown")}</code>
+{"(traces span more than one commit)" if len(table.git_shas) > 1 else ""} &middot;
 metric config <code>{
         _esc(sorted(table.config_hashes)[0] if table.config_hashes else "unknown")
     }</code> &middot;
@@ -427,6 +431,10 @@ SHOWCASE_SYSTEMS: Final[frozenset[str]] = frozenset(
 )
 
 
+class SourceMismatchError(ValueError):
+    """The audio handed to a showcase is not what its traces were measured on."""
+
+
 def make_showcase(
     track_id: str,
     kind: str,
@@ -441,7 +449,9 @@ def make_showcase(
 
     Rebuilt from the traces rather than saved during the run: a trace holds the
     chain and the source hash, so the audio is a derived artifact. That keeps
-    runs cheap and guarantees what is played is what the numbers describe.
+    runs cheap, and the hash is *checked* here: a source clipped to a different
+    length than the run used would otherwise be re-degraded and labelled with
+    numbers measured on different audio.
     """
     from headroom.analysis.features import analyze
     from headroom.dsp.backends.pedalboard import render_chain
@@ -463,6 +473,16 @@ def make_showcase(
         level_db=level,
     )
     degraded = render_chain(source, degradation.chain)
+    # A trace's source_hash is the degraded input the systems were handed, so
+    # that is what the rebuilt degradation must reproduce exactly.
+    recorded = {t.source_hash for t in cell}
+    actual = degraded.content_hash()
+    if recorded != {actual}:
+        raise SourceMismatchError(
+            f"{track_id} {kind}/{seed}: the traces were measured on degraded input "
+            f"{', '.join(sorted(h[:12] for h in recorded))}, but the audio supplied "
+            f"degrades to {actual[:12]}; check --clip-seconds and the corpus"
+        )
 
     outputs: dict[str, AudioBuffer] = {}
     by_system: dict[str, RunTrace] = {}

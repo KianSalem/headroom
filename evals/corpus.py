@@ -100,6 +100,11 @@ class CorpusManifest(BaseModel):
     #: identifiable, and "MUSDB18" alone does not identify a distribution.
     source_url: str = ""
     source_md5: str = ""
+    #: Whether audio derived from this corpus may be published -- embedded in
+    #: the HTML report, committed under results/. Defaults to False because the
+    #: real corpus is non-commercial with per-track terms, and the safe failure
+    #: is a report with tables and no players, not a licence violation in git.
+    redistributable: bool = False
     tracks: tuple[TrackRecord, ...] = ()
 
     def train(self) -> tuple[TrackRecord, ...]:
@@ -165,13 +170,14 @@ def scan_directory(
     prefer_canonical_split: bool = True,
     source_url: str = "",
     source_md5: str = "",
+    redistributable: bool = False,
 ) -> CorpusManifest:
     """Build a manifest by scanning a directory of audio files.
 
     Reads headers only -- no audio is decoded -- so scanning a large corpus is
     fast. Files below ``min_duration_s`` or under the minimum sample rate are
-    skipped with their reason recorded by the caller, because a two-second clip
-    cannot support a 3 s short-term loudness window.
+    skipped, because a two-second clip cannot support a 3 s short-term loudness
+    window; so are files with more than two channels.
     """
     root_path = Path(root).expanduser().resolve()
     if not root_path.is_dir():
@@ -213,6 +219,7 @@ def scan_directory(
         ),
         source_url=source_url,
         source_md5=source_md5,
+        redistributable=redistributable,
         tracks=tuple(records),
     )
 

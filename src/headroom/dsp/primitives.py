@@ -154,14 +154,18 @@ def true_peak_limiter(
 
 
 def _band_sos(band: int, sample_rate: int, edges: tuple[float, ...]) -> npt.NDArray[np.float64]:
-    """Zero-phase filter for one band. The lowest and highest bands become
-    low-pass and high-pass so the ends of the spectrum are not excluded."""
+    """Zero-phase filter for one band.
+
+    The lowest band is a low-pass so nothing below 20 Hz is excluded. The
+    highest band is a band-pass up to the top analysis edge (20 kHz): at the
+    sample rates this project accepts that edge is always below Nyquist, and
+    nothing above it is measured, so a high-pass would only add out-of-band
+    energy the metric cannot see.
+    """
     nyq = sample_rate / 2.0
     lo, hi = edges[band], min(edges[band + 1], nyq * 0.999)
     if band == 0:
         sos = signal.butter(4, hi / nyq, btype="lowpass", output="sos")
-    elif hi >= nyq * 0.999:
-        sos = signal.butter(4, lo / nyq, btype="highpass", output="sos")
     else:
         sos = signal.butter(4, [lo / nyq, hi / nyq], btype="bandpass", output="sos")
     return np.asarray(sos, dtype=np.float64)

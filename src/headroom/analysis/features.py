@@ -33,7 +33,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from headroom.audio import AudioBuffer
+from headroom.audio import AudioBuffer, AudioError
 
 from .dynamics import analyze_dynamics
 from .loudness import analyze_loudness
@@ -160,6 +160,10 @@ def clear_cache() -> None:
 
 def analyze(buf: AudioBuffer, use_cache: bool = True) -> FeatureVector:
     """Compute the full feature vector. Deterministic; no LLM involved."""
+    if buf.n_frames == 0:
+        # An empty file loads without complaint and fails deep inside the
+        # spectral path with an IndexError; say what is actually wrong.
+        raise AudioError("cannot analyze an empty buffer (0 frames)")
     if use_cache:
         # was_mono is part of the key: two buffers can hold identical samples
         # while disagreeing about whether the stereo features are meaningful.

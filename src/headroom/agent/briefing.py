@@ -59,7 +59,6 @@ class Briefing:
     other_chain: str
     own_history: str
     other_history: str
-    frozen: tuple[str, ...]
     tried_and_failed: tuple[str, ...]
 
     def render(self) -> str:
@@ -117,13 +116,6 @@ class Briefing:
                 "tried, or reversing your last one, will end the run. Try a different "
                 "dimension or a different op.",
             ]
-        if self.frozen:
-            out += [
-                "",
-                "## Frozen",
-                "These dimensions reversed direction too often and are locked for the "
-                "rest of the run; leave them alone: " + ", ".join(self.frozen),
-            ]
         if self.tried_and_failed:
             out += [
                 "",
@@ -152,13 +144,9 @@ class Briefing:
 def build(state: LoopState, memory: WorkingMemory, role: Role) -> Briefing:
     """Filter loop state down to one role's view."""
     owned = set(OWNED_FEATURES[role])
-    mine = [
-        d
-        for d in state.distance.breakdown.values()
-        if d.name in owned and not d.in_tolerance and d.name not in state.frozen_params
-    ]
+    mine = [d for d in state.distance.breakdown.values() if d.name in owned and not d.in_tolerance]
     mine.sort(key=lambda d: -abs(d.scaled))
-    level = getattr(state.features, "lufs_integrated", -14.0)
+    level = state.features.lufs_integrated
     return Briefing(
         role=role,
         step=state.step_index,
@@ -175,7 +163,6 @@ def build(state: LoopState, memory: WorkingMemory, role: Role) -> Briefing:
         other_chain=tools.foreign_ops(state.chain, role),
         own_history=memory.render_own(role),
         other_history=memory.render_others(role),
-        frozen=tuple(sorted(state.frozen_params & owned)),
         tried_and_failed=tuple(sorted(a for a in state.tried_and_failed if _looks_like(a, role))),
     )
 

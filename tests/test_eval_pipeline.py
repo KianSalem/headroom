@@ -266,3 +266,74 @@ def test_html_report_states_that_measurements_are_on_lossless_audio(
     assert "lossless render" in page
     assert "Measured is not perceived" in page
     assert "upper bound rather than a competitor" in page
+
+
+def test_a_showcase_refuses_audio_the_traces_were_not_measured_on(tmp_path: Path) -> None:
+    """A source clipped to a different length than the run used would be
+    re-degraded and labelled with numbers measured on different audio."""
+    root = tmp_path / "corpus"
+    _write_corpus(root, n=1, seconds=12.0)
+    manifest = scan_directory(root, corpus_name="probe", test_fraction=1.0)
+    track = manifest.tracks[0]
+    full = track.load()
+    traces, _ = runner.run_cell(
+        full, track.track_id, "level_offset", 0, ["null"], config=CriticConfig(render_budget=2)
+    )
+    trace = traces[0]
+    shorter = runner.clip(full, 6.0)
+    assert shorter.content_hash() != full.content_hash()
+    with pytest.raises(html_report.SourceMismatchError, match="clip-seconds"):
+        html_report.make_showcase(track.track_id, "level_offset", 0, [trace], source=shorter)
+    ok = html_report.make_showcase(track.track_id, "level_offset", 0, [trace], source=full)
+    assert ok.degraded.content_hash() == trace.source_hash
+
+
+def test_report_audio_names_keep_their_dots(tmp_path: Path) -> None:
+    """MUSDB18 has "M.E.R.C. Music - Knockout". with_suffix() would have
+    written every player for that track to one file named test_M.E.R.C.wav."""
+    buf = AudioBuffer(np.zeros((4800, 2)), SR)
+    written = html_report.write_audio(buf, tmp_path / "test_M.E.R.C._Music__heuristic")
+    assert written.name.startswith("test_M.E.R.C._Music__heuristic.")
+    assert written.suffix in {".wav", ".mp3"}
+
+
+def test_check_against_turns_reproduction_into_an_exit_code(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The published-row claim is 'run it again, land on the same recovery'.
+    That is a command with an exit code, not a sentence."""
+    from headroom.cli import main
+
+    root = tmp_path / "corpus"
+    _write_corpus(root, n=1, seconds=12.0)
+    manifest = scan_directory(root, corpus_name="probe", test_fraction=1.0)
+    manifest_path = tmp_path / "manifest.json"
+    save_manifest(manifest, manifest_path)
+    common = ["eval", "--manifest", str(manifest_path), "--systems", "null", "--seeds", "1"]
+    first, second = tmp_path / "first", tmp_path / "second"
+    assert main([*common, "--out", str(first)]) == 0
+    assert main([*common, "--out", str(second), "--check-against", str(first)]) == 0
+    out = capsys.readouterr().out
+    assert "recovery mismatches against" in out and " 0 of " in out
+
+    # Tamper with one published trace and the same command refuses.
+    victim = sorted(p for p in first.glob("*.json") if not p.name.startswith("_"))[0]
+    doctored = json.loads(victim.read_text())
+    doctored["recovery_ratio"] = 0.5
+    victim.write_text(json.dumps(doctored))
+    assert main([*common, "--out", str(tmp_path / "third"), "--check-against", str(first)]) == 1
+    assert victim.name in capsys.readouterr().out
+
+
+def test_the_run_summary_states_replay_status_and_spend() -> None:
+    from headroom.control.state import RunTrace
+
+    base = RunTrace.model_validate_json(
+        sorted(Path("results/traces-musdb18-20s").glob("*__agent.json"))[0].read_text()
+    )
+    paid = base.model_copy(update={"replayed_from_cassette": False, "total_cost_usd": 0.25})
+    free = base.model_copy(update={"replayed_from_cassette": True, "total_cost_usd": 0.75})
+    text = runner.RunReport(traces=[paid, free]).summary()
+    assert "1/2 model-backed cells fully replayed" in text
+    assert "actual spend $0.2500 (recorded cost $1.0000)" in text
+    assert "model-backed" not in runner.RunReport(traces=[]).summary()

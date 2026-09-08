@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from typing import Any, Final
 
 from headroom.analysis.features import FeatureVector
+from headroom.control.state import InfrastructureError
 from headroom.dsp.chain import Chain
 from headroom.target.distance import SPEC_BY_NAME, to_scored
 
@@ -56,8 +57,28 @@ API_KEY_ENV: Final[str] = "ANTHROPIC_API_KEY"
 
 _RETRYABLE: Final[frozenset[int]] = frozenset({408, 429, 500, 502, 503, 504, 529})
 
+#: Model families that still take a token budget for extended thinking. From
+#: Claude 4.6 onwards the API rejects ``budget_tokens`` with a 400 and wants
+#: ``{"type": "adaptive"}`` instead, so the request shape follows the model
+#: rather than being one switch that only works for the default Haiku.
+_BUDGETED_THINKING_PREFIXES: Final[tuple[str, ...]] = (
+    "claude-3",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-2",
+    "claude-opus-4-1",
+    "claude-opus-4-2",
+)
 
-class ModelError(RuntimeError):
+
+def thinking_block(model: str, budget_tokens: int) -> dict[str, Any]:
+    """The ``thinking`` request field for this model."""
+    if model.startswith(_BUDGETED_THINKING_PREFIXES):
+        return {"type": "enabled", "budget_tokens": budget_tokens}
+    return {"type": "adaptive"}
+
+
+class ModelError(InfrastructureError):
     """A call failed after retries, or returned something unusable."""
 
 
@@ -150,7 +171,7 @@ class ModelClient:
         if cfg.thinking:
             # Extended thinking and a forced tool call are mutually exclusive,
             # so enabling one relaxes the other.
-            request["thinking"] = {"type": "enabled", "budget_tokens": cfg.thinking_budget}
+            request["thinking"] = thinking_block(cfg.model, cfg.thinking_budget)
             request["tool_choice"] = {"type": "auto"}
         return request
 
@@ -205,7 +226,8 @@ class ModelClient:
                 last = exc
             except anthropic.APIConnectionError as exc:
                 last = exc
-            time.sleep(self.config.retry_base_s * (2**attempt))
+            if attempt + 1 < self.config.max_retries:
+                time.sleep(self.config.retry_base_s * (2**attempt))
         raise ModelError(f"gave up after {self.config.max_retries} attempts: {last}")
 
     def _account(self, usage: Usage, *, replayed: bool) -> None:

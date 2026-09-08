@@ -9,7 +9,13 @@ from headroom.audio import AudioBuffer
 from headroom.baselines import heuristic, trivial
 from headroom.control.critic import CriticConfig, assess
 from headroom.control.loop import Proposal, config_hash, run_loop
-from headroom.control.state import TRACE_SCHEMA_VERSION, AbortReason, LoopState, RunTrace
+from headroom.control.state import (
+    TRACE_SCHEMA_VERSION,
+    AbortReason,
+    InfrastructureError,
+    LoopState,
+    RunTrace,
+)
 from headroom.dsp.backends.pedalboard import clear_cache, render_chain
 from headroom.dsp.chain import Chain
 from headroom.dsp.ops import op_gain
@@ -270,3 +276,32 @@ def test_config_hash_changes_when_the_metric_changes(
     assert config_hash(CriticConfig(render_budget=99), target, "l2") != base
     loosened = target.model_copy(update={"tolerance_overrides": {"lufs_integrated": 5.0}})
     assert config_hash(BUDGET, loosened, "l2") != base
+
+
+def test_config_hash_knows_which_features_are_constrained_not_just_how_many() -> None:
+    """A spectral-only and a stereo-only target with the same feature count are
+    different scores, and must not share a hash."""
+    spotify = TargetProfile.from_preset("spotify")
+    only_lufs = spotify.model_copy(update={"targets": {"lufs_integrated": -14.0}})
+    only_peak = spotify.model_copy(update={"targets": {"true_peak_dbtp": -1.0}})
+    assert len(only_lufs.targets) == len(only_peak.targets)
+    assert config_hash(BUDGET, only_lufs, "l2") != config_hash(BUDGET, only_peak, "l2")
+
+
+def test_an_infrastructure_failure_ends_the_evaluation_not_the_cell(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """A missing cassette or a dead API is not a fact about the proposer.
+    Recording it as proposal_error would publish a +0.000 row that measures
+    the harness, with a clean exit code."""
+    _, target = scene
+
+    class NoRecordingError(InfrastructureError):
+        pass
+
+    def unreplayable(state: LoopState) -> Proposal:
+        raise NoRecordingError("no recording for this request")
+
+    clear_cache()
+    with pytest.raises(NoRecordingError):
+        run_loop("agent", _degraded(scene, "combo"), target, unreplayable, config=BUDGET)

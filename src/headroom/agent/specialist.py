@@ -17,11 +17,20 @@ rather than things hoped for in a live run.
 :class:`ProportionalSpecialist` is a real policy: it reads the briefing and
 maps each dimension it owns onto the tool that moves it, using **the same
 correction constants as the heuristic baseline, imported rather than copied**.
-That makes it a controlled ablation. It differs from the heuristic in exactly
-one respect -- it may make several coordinated edits per render, where the
-heuristic makes one -- so the gap between them measures the architecture, and
-the gap between it and the LLM-backed agent measures the model. Neither number
-is interpretable without the other.
+That makes it a controlled ablation. It differs from the heuristic in one
+designed respect -- it may make several coordinated edits per render, where
+the heuristic makes one -- so the gap between them measures the architecture,
+and the gap between it and the LLM-backed agent measures the model. Neither
+number is interpretable without the other.
+
+One incidental difference is recorded here rather than hidden: the two stereo
+corrections that are not per-band (``correlation_z`` and ``mono_compat_db``)
+share the heuristic's constants and clamps but are expressed as a width change
+in dB here, where the heuristic applies them as a linear factor. The per-band
+``width_i`` corrections are identical. The tools take absolute widths, so a dB
+step is the natural unit on this side; the mapping was left as-is once results
+were recorded rather than re-running every table to remove a difference that
+only touches two of eleven stereo dimensions.
 """
 
 from __future__ import annotations

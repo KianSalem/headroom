@@ -7,9 +7,11 @@ highs, measure dull, forever.
 
 Detection follows SPEC 6.4: distance failing to decrease over a window, and a
 sign flip on the same op parameter across consecutive edits. The response is
-escalated in order rather than jumping straight to abort -- halve the step
-size, then freeze the oscillating parameter and route elsewhere, then abort
-with a named reason.
+escalated rather than jumping straight to abort -- the step size is damped
+first, and only an oscillation that survives damping ends the run with a named
+reason. SPEC 6.4's middle tier, freezing the oscillating parameter, is not
+implemented in v1 (see SCOPE.md); the supervisor's rerouting after repeated
+misses covers the same ground from the routing side.
 """
 
 from __future__ import annotations

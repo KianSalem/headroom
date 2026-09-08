@@ -34,6 +34,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final
 
+from headroom.control.state import InfrastructureError
+
 #: Keys stripped before hashing and before storage. Nothing here changes the
 #: response, and one of them is a credential.
 _VOLATILE: Final[frozenset[str]] = frozenset({"api_key", "metadata", "stream"})
@@ -52,7 +54,17 @@ class Mode(StrEnum):
     OFF = "off"
 
 
-class CassetteMissError(KeyError):
+def _portable(path: Path) -> str:
+    """The cassette directory as a trace should record it: relative to the
+    working directory when it is inside it, otherwise just its name. Traces are
+    committed, and an absolute path is one machine's layout, not provenance."""
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+class CassetteMissError(KeyError, InfrastructureError):
     """A request had no recording and the mode forbids calling the API."""
 
 
@@ -127,7 +139,7 @@ class Cassette:
     def stats(self) -> dict[str, Any]:
         return {
             "mode": str(self.mode),
-            "path": str(self.path),
+            "path": _portable(self.path),
             "hits": self.hits,
             "misses": self.misses,
             "writes": self.writes,

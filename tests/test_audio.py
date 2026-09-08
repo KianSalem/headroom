@@ -118,3 +118,12 @@ def test_analyze_cache_is_bounded() -> None:
     for _ in range(_CACHE_MAX + 12):
         analyze(AudioBuffer(rng.standard_normal((SR // 8, 2)) * 0.05, SR))
     assert cache_stats()["entries"] <= _CACHE_MAX
+
+
+def test_an_empty_buffer_is_refused_with_a_reason() -> None:
+    """An empty file loads without complaint; analysing it used to fail with an
+    IndexError several frames inside the spectral code."""
+    from headroom.analysis.features import analyze
+
+    with pytest.raises(AudioError, match="0 frames"):
+        analyze(AudioBuffer(np.zeros((0, 2)), SR))

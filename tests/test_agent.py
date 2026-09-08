@@ -316,16 +316,6 @@ def test_a_specialist_is_shown_only_the_dimensions_it_owns(
             assert spec.name not in text, f"{role} was shown {spec.name}"
 
 
-def test_the_briefing_hides_frozen_dimensions(
-    scene: tuple[AudioBuffer, TargetProfile],
-) -> None:
-    state = _state(scene, "spectral_tilt")
-    state.frozen_params = {"band_clr_8"}
-    brief = build_briefing(state, WorkingMemory(), Role.EQ)
-    assert "band_clr_8" not in {d.name for d in brief.mine}
-    assert "band_clr_8" in brief.render()  # named in the frozen block, not the table
-
-
 def test_damping_reaches_the_specialist_as_an_instruction(
     scene: tuple[AudioBuffer, TargetProfile],
 ) -> None:
@@ -1535,3 +1525,55 @@ def test_a_committed_recording_drives_a_specialist_with_no_key(
             outcome = tools.apply_call(Chain(), role, use["name"], use.get("input") or {})
             assert outcome.ok or outcome.error, use["name"]
         break
+
+
+def test_the_thinking_request_shape_follows_the_model_family() -> None:
+    """Claude 4.6+ rejects budget_tokens with a 400 and wants adaptive
+    thinking; Haiku 4.5 still takes a budget. One switch that only worked for
+    the default model would make the advertised model sweep a code change."""
+    from headroom.agent.client import thinking_block
+
+    assert thinking_block("claude-haiku-4-5", 2048) == {"type": "enabled", "budget_tokens": 2048}
+    assert thinking_block("claude-sonnet-4-5", 2048)["type"] == "enabled"
+    assert thinking_block("claude-opus-5", 2048) == {"type": "adaptive"}
+    assert thinking_block("claude-sonnet-5", 2048) == {"type": "adaptive"}
+
+
+def test_the_client_does_not_sleep_after_its_final_failed_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    import time
+    import types
+
+    from headroom.agent.client import ModelClient, ModelConfig, ModelError
+
+    class APIStatusError(Exception):
+        def __init__(self, status_code: int) -> None:
+            super().__init__(f"HTTP {status_code}")
+            self.status_code = status_code
+
+    class APIConnectionError(Exception):
+        pass
+
+    class _Messages:
+        def create(self, **_: object) -> object:
+            raise APIStatusError(529)
+
+    class _Anthropic:
+        def __init__(self, **_: object) -> None:
+            self.messages = _Messages()
+
+    fake = types.ModuleType("anthropic")
+    fake.APIStatusError = APIStatusError  # type: ignore[attr-defined]
+    fake.APIConnectionError = APIConnectionError  # type: ignore[attr-defined]
+    fake.Anthropic = _Anthropic  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "anthropic", fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-not-a-real-key")
+
+    naps: list[float] = []
+    monkeypatch.setattr(time, "sleep", naps.append)
+    client = ModelClient(config=ModelConfig(model="claude-haiku-4-5", max_retries=3), cassette=None)
+    with pytest.raises(ModelError, match="gave up after 3 attempts"):
+        client._send({"model": "claude-haiku-4-5"})
+    assert len(naps) == 2, "slept after the attempt that was never going to be retried"

@@ -249,8 +249,6 @@ def propose(state: LoopState) -> Proposal:
     for candidate in ranked:
         if candidate.excess == 0.0:
             break
-        if candidate.name in state.frozen_params:
-            continue
         chain, action = _correct(state, candidate)
         if not action or abs(float(action.rsplit(" ", 1)[1])) < _EPS:
             continue

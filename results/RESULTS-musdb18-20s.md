@@ -116,7 +116,7 @@
 | diverged | 47 |
 | max_steps | 2 |
 
-_324 traces, git 186bded, config 9a9ee3667fe018b0_
+_324 traces, git 186bded, 35d7ce4, 647727e, 859dea2 (traces span more than one commit), config 9a9ee3667fe018b0_
 
 ### Paired against `heuristic`
 

@@ -1,14 +1,14 @@
 """A synthetic corpus, so the pipeline runs with no downloads.
 
-MUSDB18-HQ needs a Zenodo access request and cannot be redistributed, which
-would otherwise mean a stranger cloning this repo can read the code but not run
-it. These tracks are deliberately *not* presented as results material -- they
+The real corpus is a multi-gigabyte download that cannot be redistributed,
+which would otherwise mean a stranger cloning this repo can read the code but
+not run it. These tracks are deliberately *not* presented as results material -- they
 are stationary, synthetic and much easier to repair than real music, so numbers
 from them describe the harness rather than the systems.
 
 They exist for three jobs: proving the pipeline end to end, giving CI something
-to exercise, and letting anyone reproduce the mechanics before deciding whether
-to request the real corpus.
+to exercise, and letting anyone reproduce the mechanics before spending the
+download on the real corpus (``headroom fetch-corpus``).
 """
 
 from __future__ import annotations

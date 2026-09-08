@@ -28,13 +28,13 @@ from typing import Final
 
 from headroom.analysis.features import analyze
 from headroom.audio import AudioBuffer
-from headroom.dsp.chain import Chain
+from headroom.dsp.chain import Chain, render
 from headroom.dsp.ops import BoundViolationError
 from headroom.target.distance import DistanceResult, distance, recovery_ratio
 from headroom.target.profile import TargetProfile
 
 from .critic import DEFAULT_CONFIG, CriticConfig, assess
-from .state import AbortReason, LoopState, RunTrace, StepRecord, Verdict
+from .state import AbortReason, InfrastructureError, LoopState, RunTrace, StepRecord, Verdict
 
 _TRACKED_PACKAGES: Final[tuple[str, ...]] = (
     "numpy",
@@ -119,7 +119,9 @@ def config_hash(config: CriticConfig, target: TargetProfile, norm: str) -> str:
         "tolerance_overrides": target.tolerance_overrides,
         "weight_overrides": target.weight_overrides,
         "directions": target.directions,
-        "n_constrained": len(target.targets),
+        # Which features are constrained, not just how many: a spectral-only
+        # and a stereo-only target with the same count are different scores.
+        "constrained": sorted(target.targets),
     }
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.blake2b(blob.encode(), digest_size=8).hexdigest()
@@ -247,6 +249,10 @@ def run_loop(
                 _terminal_step(state, renders, started, AbortReason.BOUND_SATURATION, str(exc))
             )
             break
+        except InfrastructureError:
+            # Not a fact about the proposer. Let it end the evaluation loudly
+            # rather than becoming a zero-recovery row with a clean exit code.
+            raise
         except Exception as exc:
             abort_reason = AbortReason.PROPOSAL_ERROR
             state.history.append(
@@ -278,10 +284,8 @@ def run_loop(
             )
             break
 
-        from headroom.dsp.backends.pedalboard import render_chain
-
         try:
-            rendered = render_chain(source, ordered)
+            rendered = render(source, ordered)
         except (FloatingPointError, ValueError) as exc:
             abort_reason = AbortReason.RENDER_FAILURE
             state.history.append(

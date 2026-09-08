@@ -159,3 +159,20 @@ def test_unstable_chain_raises_rather_than_returning_nans(src: AudioBuffer) -> N
     infected = src.replace_samples(np.full_like(src.samples, np.inf))
     with pytest.raises((FloatingPointError, ValueError)):
         render_chain(infected, Chain().add(op_limiter(ceiling_dbtp=-1.0)), use_cache=False)
+
+
+def test_the_render_cache_is_bounded() -> None:
+    """One entry is a full float64 stereo render, and the optimizer produces
+    250 distinct chains per cell; an unbounded cache grows by gigabytes."""
+    import numpy as np
+
+    from headroom.audio import AudioBuffer
+    from headroom.dsp.backends.pedalboard import _CACHE_MAX, cache_stats, clear_cache, render_chain
+    from headroom.dsp.chain import Chain
+    from headroom.dsp.ops import op_gain
+
+    clear_cache()
+    source = AudioBuffer(np.full((4800, 2), 0.1), 48000)
+    for i in range(_CACHE_MAX + 10):
+        render_chain(source, Chain(ops=(op_gain(gain_db=-0.1 * i),)))
+    assert cache_stats()["entries"] == _CACHE_MAX

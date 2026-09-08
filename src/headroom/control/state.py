@@ -43,12 +43,23 @@ class AbortReason(StrEnum):
     PROPOSAL_ERROR = "proposal_error"
     PROPOSAL_EMPTY = "proposal_empty"
     RENDER_FAILURE = "render_failure"
-    TOKEN_BUDGET = "token_budget"
-    COST_BUDGET = "cost_budget"
     #: The system made the audio dramatically worse than it started. Named
     #: for what was observed rather than for a cause: the target may well be
     #: reachable, the system just ran away from it.
     DIVERGED = "diverged"
+
+
+class InfrastructureError(RuntimeError):
+    """A failure of the machinery around a proposal, not of the proposal.
+
+    The loop records a proposer that raises as ``proposal_error`` and moves on,
+    because a policy that crashes on some input is a result worth tabulating.
+    A missing cassette in replay mode, a missing credential, or an exhausted
+    API is not a result about the policy; scoring it as +0.000 recovery would
+    publish a number that measures the harness. Proposers raise a subclass of
+    this to say "stop the run, this is not about me", and the loop lets it
+    through.
+    """
 
 
 class Verdict(StrEnum):
@@ -168,9 +179,6 @@ class LoopState:
     render_budget: int
     history: list[StepRecord] = field(default_factory=list)
     oscillating: bool = False
-    #: Op parameters whose last two edits flipped sign. Frozen to break a
-    #: boost-cut-boost cycle.
-    frozen_params: set[str] = field(default_factory=set)
     #: Actions that increased distance, so they are not retried.
     tried_and_failed: set[str] = field(default_factory=set)
 

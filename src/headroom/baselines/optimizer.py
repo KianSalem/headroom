@@ -42,8 +42,7 @@ from headroom.audio import AudioBuffer
 from headroom.control.critic import DEFAULT_CONFIG, CriticConfig
 from headroom.control.loop import config_hash, git_sha, package_versions
 from headroom.control.state import AbortReason, RunTrace, StepRecord, Verdict
-from headroom.dsp.backends.pedalboard import render_chain
-from headroom.dsp.chain import Chain
+from headroom.dsp.chain import Chain, render
 from headroom.dsp.ops import EqBand, Op, op_compressor, op_eq, op_expander, op_gain, op_stereo_width
 from headroom.target.distance import distance, recovery_ratio
 from headroom.target.profile import TargetProfile
@@ -176,7 +175,7 @@ def run(
     # guarantees the bound holds.
     for candidate in seed_chains:
         try:
-            rendered = render_chain(source, candidate)
+            rendered = render(source, candidate)
         except (FloatingPointError, ValueError):
             continue
         renders += 1
@@ -193,7 +192,7 @@ def run(
             return float(best_score + 1e3)
         chain = build_chain(params, level_db)
         try:
-            rendered = render_chain(source, chain)
+            rendered = render(source, chain)
         except (FloatingPointError, ValueError):
             return float(initial * 10.0)
         renders += 1
@@ -229,7 +228,7 @@ def run(
     best_chain = (
         best_seed_chain if best_seed_chain is not None else build_chain(best_params, level_db)
     )
-    final_result = distance(analyze(render_chain(source, best_chain)), target, norm=norm)
+    final_result = distance(analyze(render(source, best_chain)), target, norm=norm)
 
     steps = (
         StepRecord(

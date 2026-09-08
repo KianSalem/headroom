@@ -85,9 +85,7 @@ def role_loads(state: LoopState) -> list[RoleLoad]:
     for role in Role:
         owned = set(OWNED_FEATURES[role])
         mine = [
-            d
-            for d in state.distance.breakdown.values()
-            if d.name in owned and not d.in_tolerance and d.name not in state.frozen_params
+            d for d in state.distance.breakdown.values() if d.name in owned and not d.in_tolerance
         ]
         if not mine:
             continue

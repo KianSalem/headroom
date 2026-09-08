@@ -107,7 +107,7 @@
 | oscillation_unresolved | 22 |
 | max_steps | 8 |
 
-_270 traces, git 125cf29, config 9a9ee3667fe018b0_
+_270 traces, git 125cf29, 6f25c23 (traces span more than one commit), config 9a9ee3667fe018b0_
 
 ### Paired against `heuristic`
 

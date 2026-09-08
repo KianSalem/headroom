@@ -21,6 +21,7 @@ tolerance across them.
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import Final
 
 import numpy as np
@@ -45,8 +46,13 @@ from ..primitives import expander, stereo_width, true_peak_limiter
 #: Render cache. Keyed on (source content hash, chain fingerprint), so an agent
 #: that reverts an edit gets the earlier render back for free. The loop
 #: re-renders constantly, and renders dominate wall time for the optimizer
-#: baseline, so this is a large and cheap win.
-_CACHE: Final[dict[tuple[str, str], Samples]] = {}
+#: baseline, so this is a large and cheap win. Bounded, because one entry is a
+#: full float64 stereo render (~15 MB for 20 s at 48 kHz) and the optimizer
+#: alone produces 250 distinct chains per cell; an unbounded cache would grow
+#: by gigabytes within a single cell. Least-recently-used eviction keeps the
+#: revert-and-retry hits, which are always recent.
+_CACHE: Final[OrderedDict[tuple[str, str], Samples]] = OrderedDict()
+_CACHE_MAX: Final[int] = 64
 
 _EQ_FILTERS: Final[dict[str, type]] = {
     "peak": pb.PeakFilter,
@@ -126,6 +132,7 @@ def render_chain(source: AudioBuffer, chain: Chain, use_cache: bool = True) -> A
     ordered, _ = chain.canonical()
     key = (source.content_hash(), ordered.fingerprint())
     if use_cache and key in _CACHE:
+        _CACHE.move_to_end(key)
         return source.replace_samples(_CACHE[key])
 
     samples = np.ascontiguousarray(source.samples, dtype=np.float64)
@@ -139,6 +146,8 @@ def render_chain(source: AudioBuffer, chain: Chain, use_cache: bool = True) -> A
     result = np.ascontiguousarray(samples, dtype=np.float64)
     if use_cache:
         _CACHE[key] = result
+        while len(_CACHE) > _CACHE_MAX:
+            _CACHE.popitem(last=False)
     return source.replace_samples(result)
 
 

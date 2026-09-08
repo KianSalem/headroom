@@ -233,7 +233,7 @@ def download(
     expected_mb = archive.size_bytes / 1e6
     log(f"{archive.filename}: fetching {expected_mb:.0f} MB from {archive.record_url}")
 
-    with urllib.request.urlopen(archive.url) as response, partial.open("wb") as out:
+    with urllib.request.urlopen(archive.url, timeout=120) as response, partial.open("wb") as out:
         seen = 0
         step = max(archive.size_bytes // 20, 1)
         next_mark = step
@@ -334,6 +334,7 @@ def extract_mixture(
     archive plus the whole corpus.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    part = out_path.with_name(out_path.name + ".part")
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp) / "track.stem.mp4"
         with zf.open(member) as src, staged.open("wb") as dst:
@@ -356,11 +357,17 @@ def extract_mixture(
             f"{seconds:.3f}",
             "-c:a",
             "pcm_s24le",
-            str(out_path),
+            "-f",
+            "wav",
+            str(part),
         ]
         proc = subprocess.run(command, capture_output=True, text=True, check=False)
-        if proc.returncode != 0 or not out_path.exists():
+        if proc.returncode != 0 or not part.exists():
+            # Nothing partial may survive: the next run treats any file at
+            # out_path as a finished track, and the archive is gone by then.
+            part.unlink(missing_ok=True)
             raise FetchError(f"ffmpeg failed on {member}: {proc.stderr.strip()[:400]}")
+        part.replace(out_path)
 
 
 def iter_planned(

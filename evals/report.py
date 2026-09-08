@@ -239,7 +239,8 @@ def render_markdown(table: ResultsTable) -> str:
 
     lines.append(
         f"\n_{table.n_traces} traces"
-        + (f", git {sorted(table.git_shas)[0]}" if table.git_shas else "")
+        + (f", git {', '.join(sorted(table.git_shas))}" if table.git_shas else "")
+        + (" (traces span more than one commit)" if len(table.git_shas) > 1 else "")
         + (f", config {sorted(table.config_hashes)[0]}" if table.config_hashes else "")
         + "_"
     )

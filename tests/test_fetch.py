@@ -25,7 +25,7 @@ import soundfile as sf
 from evals import fetch
 from evals.corpus import scan_directory, split_from_track_id
 
-from headroom.cli import build_parser
+from headroom.cli import build_parser, fetch_destinations, main
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -96,7 +96,8 @@ def test_the_default_destination_is_one_git_refuses_to_commit() -> None:
     changing the default to somewhere committable fails here.
     """
     args = build_parser().parse_args(["fetch-corpus"])
-    top = Path(args.out).parts[0]
+    out_dir, _ = fetch_destinations(args.archive, args.out, args.manifest)
+    top = Path(out_dir).parts[0]
     ignored = {
         line.strip().rstrip("/*")
         for line in (REPO_ROOT / ".gitignore").read_text().splitlines()
@@ -209,7 +210,7 @@ def _pinned(body: bytes, **over: Any) -> fetch.RemoteArchive:
 
 
 def _serve(monkeypatch: pytest.MonkeyPatch, body: bytes) -> None:
-    monkeypatch.setattr(urllib.request, "urlopen", lambda _url: _FakeResponse(body))
+    monkeypatch.setattr(urllib.request, "urlopen", lambda _url, **_: _FakeResponse(body))
 
 
 def test_a_verified_download_lands_and_reports_its_digest(
@@ -593,3 +594,95 @@ def test_missing_audio_reports_exactly_the_absent_tracks(tmp_path: Path) -> None
     (tmp_path / "a.wav").unlink()
     absent = missing_audio(manifest)
     assert [t.track_id for t in absent] == ["a"]
+
+
+def test_each_archive_gets_its_own_directory_and_manifest_by_default() -> None:
+    """The two distributions hold the same track names. A shared default would
+    make the second fetch skip every track as "already present" and then write
+    a manifest claiming the wrong archive's digest for the first one's audio."""
+    full = fetch_destinations("musdb18", None, None)
+    short = fetch_destinations("musdb18-7s", None, None)
+    assert full[0] != short[0] and full[1] != short[1]
+    assert short == ("audio/musdb18-7s", "results/corpus_manifest_musdb18_7s.json")
+    assert fetch_destinations("musdb18", "x", "y.json") == ("x", "y.json")
+
+
+def test_a_failed_extraction_leaves_no_partial_track_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The next run treats any file at the destination as a finished track and
+    the archive is gone by then, so a truncated WAV would silently become
+    corpus material."""
+    packed = tmp_path / "packed.zip"
+    with zipfile.ZipFile(packed, "w") as zf:
+        zf.writestr("test/A - B.stem.mp4", b"pretend")
+
+    def dying_ffmpeg(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        if "-f" in command:  # the extraction call, not the duration probe
+            Path(command[-1]).write_bytes(b"RIFF\x00\x00\x00\x00WAVEtruncated")
+            return subprocess.CompletedProcess(command, 1, "", "disk full")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", dying_ffmpeg)
+    monkeypatch.setattr(fetch, "_probe_duration", lambda *_: 60.0)
+    out = tmp_path / "out" / "test" / "a_b.wav"
+    with zipfile.ZipFile(packed) as zf, pytest.raises(fetch.FetchError, match="disk full"):
+        fetch.extract_mixture(zf, "test/A - B.stem.mp4", out, ffmpeg="ffmpeg")
+    assert not out.exists()
+    assert list(out.parent.glob("*")) == [], "a partial file survived the failure"
+
+
+def test_the_corpus_command_warns_when_a_split_comes_out_empty(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A stable hash split on a handful of tracks can put every track on one
+    side. `headroom eval` on the empty split would then run zero cells and
+    report that as a result, so the warning belongs at manifest time."""
+    root = tmp_path / "tiny"
+    root.mkdir()
+    _write_tone(root / "only.wav")
+    assert (
+        main(["corpus", str(root), "--out", str(tmp_path / "m.json"), "--test-fraction", "0.0"])
+        == 0
+    )
+    err = capsys.readouterr().err
+    assert "no tracks in the 'test' split" in err
+
+
+def test_the_corpus_command_names_the_directory_not_a_corpus_it_never_saw(tmp_path: Path) -> None:
+    """A committed manifest that names the wrong corpus is worse than none, so
+    the default name is the directory's and the default licence is a shrug."""
+    from evals.corpus import load_manifest
+
+    root = tmp_path / "my_clips"
+    root.mkdir()
+    _write_tone(root / "a.wav")
+    out = tmp_path / "m.json"
+    assert main(["corpus", str(root), "--out", str(out)]) == 0
+    manifest = load_manifest(out)
+    assert manifest.corpus_name == "my_clips"
+    assert manifest.redistributable is False
+    assert manifest.tracks[0].license == "unspecified"
+    assert main(["corpus", str(root), "--out", str(out), "--redistributable"]) == 0
+    assert load_manifest(out).redistributable is True
+
+
+def test_master_without_a_target_says_what_it_needs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write_tone(tmp_path / "in.wav")
+    code = main(["master", str(tmp_path / "in.wav"), str(tmp_path / "out.wav")])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "--target" in err and "--reference" in err and "--brief" in err
+    assert "Traceback" not in err
+
+
+def test_an_unreadable_input_is_one_sentence_not_a_stack_trace(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(["analyze", str(tmp_path / "does_not_exist.wav")])
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "does_not_exist.wav" in err
+    assert "Traceback" not in err

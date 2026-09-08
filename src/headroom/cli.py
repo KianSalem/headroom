@@ -17,12 +17,13 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
+import soundfile as sf
 from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
 
 from headroom import __version__
 from headroom.agent.client import DEFAULT_MODEL
 from headroom.analysis.features import analyze
-from headroom.audio import AudioBuffer, load, save
+from headroom.audio import AudioBuffer, AudioError, load, save
 from headroom.dsp.backends.pedalboard import render_chain
 from headroom.dsp.chain import Chain
 from headroom.target.distance import distance
@@ -30,6 +31,15 @@ from headroom.target.profile import PRESETS, TargetProfile
 
 if TYPE_CHECKING:
     from evals.corpus import CorpusManifest
+
+
+#: soundfile ships no type information, so its error class is named once here
+#: with a type mypy can check an ``except`` clause against.
+_UNREADABLE_AUDIO: type[Exception] = sf.LibsndfileError
+
+
+class UsageError(ValueError):
+    """A command line that cannot be acted on. Exits 2 with one sentence."""
 
 
 class CorpusMissingError(RuntimeError):
@@ -121,6 +131,11 @@ def _cmd_master(args: argparse.Namespace) -> int:
     from headroom.control.critic import CriticConfig
     from headroom.control.loop import run_loop
 
+    if not (args.reference or args.target or args.brief):
+        raise UsageError(
+            "master needs something to aim at: --target <preset>, --reference <file>, "
+            "or --brief '<what you want>'"
+        )
     source = load(args.input)
     target = _brief_target(args, source) if args.brief else _target_for(args)
     config = CriticConfig(render_budget=args.budget)
@@ -215,6 +230,25 @@ def _cmd_eval(args: argparse.Namespace) -> int:
         ),
     )
     sys.stdout.write(report.summary() + "\n")
+    if args.check_against:
+        # The reproduction claim as a command: the same cells, run again, land
+        # on the same recovery as the traces that were published.
+        from evals.runner import load_traces, trace_filename
+
+        committed = {trace_filename(t): t for t in load_traces(args.check_against)}
+        compared = [
+            (t, committed[trace_filename(t)])
+            for t in report.traces
+            if trace_filename(t) in committed
+        ]
+        mismatched = [t for t, c in compared if abs(t.recovery_ratio - c.recovery_ratio) > 1e-9]
+        sys.stdout.write(
+            f"recovery mismatches against {args.check_against}: "
+            f"{len(mismatched)} of {len(compared)} matched traces\n"
+        )
+        for t in mismatched:
+            sys.stdout.write(f"  {trace_filename(t)}\n")
+        return 1 if mismatched or not compared else 0
     return 0
 
 
@@ -231,13 +265,24 @@ def _cmd_report(args: argparse.Namespace) -> int:
     sys.stdout.write(f"{len(traces)} traces -> {args.markdown}, {args.json_out}\n")
     if args.html:
         from evals.corpus import load_manifest
+        from evals.html_report import SourceMismatchError, make_showcase
         from evals.html_report import build as build_html
-        from evals.html_report import make_showcase
         from evals.runner import clip
 
         showcases = []
-        if args.manifest and Path(args.manifest).exists():
-            tracks = {t.track_id: t for t in load_manifest(args.manifest).tracks}
+        manifest = (
+            load_manifest(args.manifest) if args.manifest and Path(args.manifest).exists() else None
+        )
+        if manifest is not None and not manifest.redistributable:
+            # results/ is committed. Writing a non-commercial corpus's audio
+            # there is a licence violation one `git add` away, so the report
+            # gets tables and no players unless the manifest says otherwise.
+            sys.stderr.write(
+                f"{manifest.corpus_name}: not marked redistributable; the report "
+                "gets tables only, no listening examples\n"
+            )
+        elif manifest is not None:
+            tracks = {t.track_id: t for t in manifest.tracks}
             # One showcase per degradation kind, so a listener hears each
             # failure mode once rather than the same track nine times.
             seen: set[str] = set()
@@ -247,16 +292,20 @@ def _cmd_report(args: argparse.Namespace) -> int:
                     continue
                 if wanted is not None and trace.degradation_kind not in wanted:
                     continue
-                seen.add(trace.degradation_kind)
-                showcases.append(
-                    make_showcase(
+                source = clip(tracks[trace.track_id].load(), args.clip_seconds)
+                try:
+                    showcase = make_showcase(
                         trace.track_id,
                         trace.degradation_kind,
                         trace.degradation_seed,
                         traces,
-                        source=clip(tracks[trace.track_id].load(), args.clip_seconds),
+                        source=source,
                     )
-                )
+                except SourceMismatchError as exc:
+                    sys.stderr.write(f"skipping listening example: {exc}\n")
+                    continue
+                seen.add(trace.degradation_kind)
+                showcases.append(showcase)
         build_html(traces, args.html, showcases)
         sys.stdout.write(f"wrote {args.html} with {len(showcases)} listening examples\n")
     return 0
@@ -342,13 +391,24 @@ def _cmd_corpus(args: argparse.Namespace) -> int:
 
     manifest = scan_directory(
         args.root,
-        corpus_name=args.name,
+        corpus_name=args.name or Path(args.root).resolve().name,
         test_fraction=args.test_fraction,
         license_note=args.license,
         min_duration_s=args.min_duration,
+        redistributable=args.redistributable,
     )
     save_manifest(manifest, args.out)
     sys.stdout.write(f"{manifest.summary()}\nwrote {args.out}\n")
+    for split in ("train", "test"):
+        if manifest.tracks and not any(t.split == split for t in manifest.tracks):
+            # The hash split is stable under insertion, which on a handful of
+            # tracks can mean every one lands on the same side. Say so here,
+            # because `headroom eval` on an empty split runs zero cells and
+            # reports that as a result rather than as a mistake.
+            sys.stderr.write(
+                f"warning: no tracks in the {split!r} split; raise --test-fraction "
+                "or lay the corpus out as train/ and test/ directories\n"
+            )
     return 0
 
 
@@ -415,6 +475,19 @@ def _cmd_corpus_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def fetch_destinations(archive_key: str, out: str | None, manifest: str | None) -> tuple[str, str]:
+    """Where an archive's audio and manifest go unless the caller says.
+
+    Keyed on the archive: the full-length and the 7 s distributions hold the
+    same track names, so a shared default directory would make the second
+    fetch skip every track as "already present" and then write a manifest
+    claiming the wrong archive's digest for the first archive's audio.
+    """
+    out_dir = out or f"audio/{archive_key}"
+    manifest_path = manifest or f"results/corpus_manifest_{archive_key.replace('-', '_')}.json"
+    return out_dir, manifest_path
+
+
 def _cmd_fetch_corpus(args: argparse.Namespace) -> int:
     from evals.corpus import save_manifest, scan_directory
     from evals.fetch import ARCHIVES, Split, fetch
@@ -424,10 +497,11 @@ def _cmd_fetch_corpus(args: argparse.Namespace) -> int:
         sys.stdout.flush()
 
     archive = ARCHIVES[args.archive]
+    out_dir, manifest_path = fetch_destinations(args.archive, args.out, args.manifest)
     limit: dict[Split, int] = {"train": args.train_tracks, "test": args.tracks}
     result = fetch(
         args.archive,
-        args.out,
+        out_dir,
         cache_dir=args.cache_dir,
         limit=limit,
         seconds=args.seconds,
@@ -437,15 +511,15 @@ def _cmd_fetch_corpus(args: argparse.Namespace) -> int:
     sys.stdout.write(result.summary() + "\n")
 
     manifest = scan_directory(
-        args.out,
+        out_dir,
         corpus_name=archive.name,
         license_note=archive.license,
         min_duration_s=args.min_duration,
         source_url=archive.record_url,
         source_md5=archive.md5,
     )
-    save_manifest(manifest, args.manifest)
-    sys.stdout.write(f"{manifest.summary()}\nwrote {args.manifest}\n")
+    save_manifest(manifest, manifest_path)
+    sys.stdout.write(f"{manifest.summary()}\nwrote {manifest_path}\n")
     sys.stdout.write(
         "The audio is non-commercial and per-track licensed: it is not "
         "committed, redistributed, or embedded in the report.\n"
@@ -531,6 +605,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--seeds", type=int, default=3)
     p_eval.add_argument("--systems", nargs="+", default=list(FREE_SYSTEMS))
     p_eval.add_argument("--out", default="results/traces")
+    p_eval.add_argument(
+        "--check-against",
+        metavar="TRACES_DIR",
+        help="after the run, compare each cell's recovery with the trace of the same "
+        "name in this directory and exit 1 on any mismatch; how a published row is "
+        "shown to reproduce",
+    )
     p_eval.add_argument("--clip-seconds", type=float, default=20.0)
     p_eval.add_argument("--model", default=DEFAULT_MODEL)
     p_eval.add_argument("--effort", default="")
@@ -597,8 +678,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="musdb18 is 4.68 GB of full-length mixes; musdb18-7s is 147 MB of "
         "7 s excerpts, too short to measure loudness range on",
     )
-    p_fetch.add_argument("--out", default="audio/musdb18")
-    p_fetch.add_argument("--manifest", default="results/corpus_manifest.json")
+    p_fetch.add_argument(
+        "--out",
+        default=None,
+        help="where the decoded mixtures go (default: audio/<archive>, so the "
+        "full-length and 7 s distributions never mix)",
+    )
+    p_fetch.add_argument(
+        "--manifest",
+        default=None,
+        help="manifest to write (default: results/corpus_manifest_<archive>.json)",
+    )
     p_fetch.add_argument(
         "--tracks",
         type=int,
@@ -623,12 +713,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_corpus.add_argument("--test-fraction", type=float, default=0.35)
     p_corpus.add_argument(
         "--name",
-        default="MUSDB18-HQ",
-        help="corpus name recorded in the manifest; a committed manifest that "
-        "names the wrong corpus is worse than no manifest",
+        default=None,
+        help="corpus name recorded in the manifest (default: the directory's name); "
+        "a committed manifest that names the wrong corpus is worse than no manifest",
     )
-    p_corpus.add_argument("--license", default="mixed CC BY-NC-SA, academic use")
+    p_corpus.add_argument(
+        "--license",
+        default="unspecified",
+        help="licence note recorded in the manifest; fetch-corpus fills this in "
+        "from the archive it verified, this command cannot guess it",
+    )
     p_corpus.add_argument("--min-duration", type=float, default=10.0)
+    p_corpus.add_argument(
+        "--redistributable",
+        action="store_true",
+        help="the audio may be published: lets `report --html` embed it. Off by "
+        "default; only say it for audio you generated or hold the rights to",
+    )
     p_corpus.set_defaults(func=_cmd_corpus)
 
     return parser
@@ -658,6 +759,13 @@ def main(argv: list[str] | None = None) -> int:
     except FetchError as exc:
         # A missing ffmpeg or a digest mismatch is a fact about the machine or
         # the network, not a defect worth a traceback.
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    except UsageError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    except (FileNotFoundError, AudioError, _UNREADABLE_AUDIO) as exc:
+        # A path that does not exist or is not audio is the user's to fix.
         sys.stderr.write(f"{exc}\n")
         return 2
     return result

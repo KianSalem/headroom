@@ -104,7 +104,21 @@ class RunReport:
     skipped: list[SkippedCell] = field(default_factory=list)
 
     def summary(self) -> str:
-        return f"{len(self.traces)} traces, {len(self.skipped)} cells skipped"
+        lines = [f"{len(self.traces)} traces, {len(self.skipped)} cells skipped"]
+        modelled = [t for t in self.traces if t.model]
+        if modelled:
+            # Replay status is part of the result: a row that cost nothing to
+            # produce because every call came from a committed cassette is a
+            # different claim from one that was just billed. Spend is counted
+            # per cell, so a partially replayed cell counts as fully paid for.
+            replayed = sum(1 for t in modelled if t.replayed_from_cassette)
+            recorded = sum(t.total_cost_usd for t in modelled)
+            actual = sum(t.total_cost_usd for t in modelled if not t.replayed_from_cassette)
+            lines.append(
+                f"{replayed}/{len(modelled)} model-backed cells fully replayed from cassettes; "
+                f"actual spend ${actual:.4f} (recorded cost ${recorded:.4f})"
+            )
+        return "\n".join(lines)
 
 
 def clip(buf: AudioBuffer, seconds: float = CLIP_SECONDS) -> AudioBuffer:
