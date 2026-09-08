@@ -40,9 +40,21 @@ jobs:
         run: uv run lint-imports
 
       - name: Tests
-        # No API key is available to fork pull requests, so CI covers the
-        # deterministic core only. The agent layer is tested against recorded
-        # transcripts, never a live API call.
+        # A fork pull request gets no secret, so the whole suite has to pass
+        # with the key explicitly empty. That is what the cassette layer and
+        # the import contract above are for: the agent's routing, tool layer,
+        # briefing filter and memory are all covered here, and the one module
+        # that can reach the API is exercised from recorded transcripts.
         run: uv run pytest -q
+        env:
+          ANTHROPIC_API_KEY: ""
+          HEADROOM_CASSETTE_MODE: replay
+
+      - name: Demo runs on a fresh clone with no credential
+        # The claim the README makes, asserted rather than asserted-in-prose.
+        run: |
+          uv run headroom synth-corpus --out audio/synthetic --seconds 12
+          uv run headroom master audio/synthetic/synth_01.wav /tmp/out.wav \
+            --target spotify --system agent-scaffold --budget 6
         env:
           ANTHROPIC_API_KEY: ""

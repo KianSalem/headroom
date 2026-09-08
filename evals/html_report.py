@@ -33,14 +33,16 @@ from .report import ResultsTable, aggregate, paired
 
 MP3_BITRATE: Final[str] = "320k"
 
-#: Systems in the order they should be presented: floors, then the real
-#: competitor, then the bound.
+#: Reading order for the results table, which is also the order the argument
+#: is made in: floors, then the real competitor, then the same architecture
+#: with arithmetic in place of the model, then the model, then the measured
+#: ceiling. A reader who stops early still gets an honest picture.
 SYSTEM_ORDER: Final[tuple[str, ...]] = (
     "null",
     "random",
     "hillclimb",
     "heuristic",
-    "single_agent",
+    "agent-scaffold",
     "agent",
     "optimizer",
 )
@@ -170,7 +172,7 @@ def _table(table: ResultsTable, kind: str | None = None) -> str:
         classes = []
         if cell.system == "optimizer":
             classes.append("bound")
-        if cell.system in ("heuristic", "agent"):
+        if cell.system in ("heuristic", "agent-scaffold", "agent"):
             classes.append("hero")
         rows.append(
             f'<tr class="{" ".join(classes)}">'
@@ -368,6 +370,22 @@ controller should win; coupled ones are where coordinating moves across an
 interacting system should start to earn its cost.</p>
 {"".join(f"<h3>{_esc(k)}</h3>{_table(table, k)}" for k in kinds)}
 
+<h2>Inside the agent</h2>
+<p class="note">Four specialists, each holding exclusive write access to the ops
+that move the dimensions it owns, routed by a deterministic supervisor that picks
+whichever role carries the largest weighted error. A specialist is shown only its
+own dimensions &mdash; the other eighteen to twenty-six are not in its prompt at
+all &mdash; and it may make several coordinated edits per render, where the
+heuristic makes one. That difference is the architecture's whole numeric claim,
+so <code>edits/turn</code> is reported rather than asserted.</p>
+{_roles_html(traces) or '<div class="panel note">No agent traces here.</div>'}
+
+<h3>One run, step by step</h3>
+<p class="note">Who was asked, what they changed, and what it bought. The
+<code>why</code> column is the specialist's own stated reason, which every
+mutating tool call is required to carry.</p>
+{_narrative_html(traces)}
+
 <h2>Listen</h2>
 <p class="note">Measured is not perceived. A system can hit every target and still
 sound wrong, so the outputs are here to be heard rather than trusted. Players use
@@ -451,4 +469,95 @@ def make_showcase(
         degraded=degraded,
         outputs=outputs,
         traces=by_system,
+    )
+
+
+def _roles_html(traces: Sequence[RunTrace]) -> str:
+    """Per-specialist contribution, for every agent system in the traces."""
+    from .report import agent_systems, role_breakdown
+
+    systems = agent_systems(traces)
+    if not systems:
+        return ""
+    blocks: list[str] = []
+    for system in systems:
+        rows = role_breakdown(traces, system)
+        if not rows:
+            continue
+        body = "".join(
+            f"<tr><td>{_esc(r.role)}</td><td>{r.turns}</td><td>{r.edits}</td>"
+            f"<td>{r.edits_per_turn:.2f}</td><td>{r.helped}</td>"
+            f"<td>{r.hit_rate:.0%}</td></tr>"
+            for r in rows
+        )
+        head = (
+            "<tr><th>specialist</th><th>turns</th><th>edits</th><th>edits/turn</th>"
+            "<th>helped</th><th>hit rate</th></tr>"
+        )
+        blocks.append(
+            f"<h3><code>{_esc(system)}</code></h3>"
+            f'<div class="scroll"><table>{head}{body}</table></div>'
+        )
+    return "".join(blocks)
+
+
+def _pick_narrative(traces: Sequence[RunTrace]) -> RunTrace | None:
+    """The agent run worth walking through: the most successful multi-step one.
+
+    A one-step run proves the plumbing works but shows nothing about routing,
+    and the worst run shows the critic working rather than the agent.
+    """
+    candidates = [
+        t
+        for t in traces
+        if any(s.role for s in t.steps) and sum(1 for s in t.steps if s.action) >= 2
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda t: t.recovery_ratio)
+
+
+def _narrative_html(traces: Sequence[RunTrace]) -> str:
+    """One run, step by step: who was asked, what they changed, what it bought."""
+    trace = _pick_narrative(traces)
+    if trace is None:
+        return '<div class="panel note">No multi-step agent run in these traces.</div>'
+    rows: list[str] = []
+    previous = trace.initial_distance
+    for step in trace.steps:
+        if not step.action:
+            rows.append(
+                f'<tr><td>{step.index}</td><td colspan="2">&mdash;</td>'
+                f"<td>{step.distance_score:.4f}</td><td>&mdash;</td>"
+                f"<td>{_esc(step.verdict)}: {_esc(step.note[:120])}</td></tr>"
+            )
+            continue
+        delta = step.distance_score - previous
+        css = "pos" if delta < 0 else "neg"
+        # The note is assembled by the supervisor as pipe-separated fields; the
+        # specialist's own stated reason is the fourth, when it gave one.
+        fields = [f.strip() for f in step.note.split("|")]
+        reason = fields[3] if len(fields) > 3 else (fields[-1] if fields else "")
+        rows.append(
+            f"<tr><td>{step.index}</td><td><code>{_esc(step.role)}</code></td>"
+            f"<td>{step.n_edits}</td><td>{step.distance_score:.4f}</td>"
+            f'<td><span class="{css}">{delta:+.4f}</span></td>'
+            f"<td>{_esc(reason[:160])}</td></tr>"
+        )
+        previous = step.distance_score
+    head = (
+        "<tr><th>step</th><th>specialist</th><th>edits</th><th>distance</th>"
+        "<th>change</th><th>why</th></tr>"
+    )
+    outcome = "converged" if trace.converged else f"stopped: {trace.abort_reason}"
+    return (
+        '<div class="panel">'
+        f"<h3>{_esc(trace.track_id)} &middot; {_esc(trace.degradation_kind)}/"
+        f"{trace.degradation_seed} &middot; <code>{_esc(trace.system)}</code></h3>"
+        f'<p class="note">distance {trace.initial_distance:.4f} &rarr; '
+        f"{trace.final_distance:.4f}, recovery {trace.recovery_ratio:+.3f}, "
+        f"{trace.n_renders} renders, {outcome}.</p>"
+        f'<div class="scroll"><table>{head}{"".join(rows)}</table></div>'
+        f'<div class="chain">{_esc(trace.final_chain.describe())}</div>'
+        "</div>"
     )

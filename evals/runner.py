@@ -25,6 +25,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Final
 
+from headroom.agent.client import DEFAULT_MODEL
+from headroom.agent.factory import AGENT_NAME, SCAFFOLD_NAME, build_system, cassette_for
 from headroom.analysis.features import analyze
 from headroom.analysis.features import clear_cache as clear_analysis_cache
 from headroom.audio import AudioBuffer
@@ -48,8 +50,17 @@ from .degradations import (
 #: because its render budget is unequal by design.
 LOOP_SYSTEMS: Final[tuple[str, ...]] = ("null", "random", "hillclimb", "heuristic")
 
+#: Agent systems. Both use the identical supervisor, tool layer, memory and
+#: critic; they differ only in what sits behind the specialist interface, which
+#: is what makes the pair a controlled ablation rather than two demos.
+AGENT_SYSTEMS: Final[tuple[str, ...]] = (SCAFFOLD_NAME, AGENT_NAME)
+
+#: Systems that cost nothing to run. The default, so a stranger who clones the
+#: repository gets a full results table without a credential.
+FREE_SYSTEMS: Final[tuple[str, ...]] = (*LOOP_SYSTEMS, SCAFFOLD_NAME, "optimizer")
+
 #: Every system the runner knows how to execute.
-ALL_SYSTEMS: Final[tuple[str, ...]] = (*LOOP_SYSTEMS, "optimizer")
+ALL_SYSTEMS: Final[tuple[str, ...]] = (*LOOP_SYSTEMS, *AGENT_SYSTEMS, "optimizer")
 
 #: How long a slice of each track to use. Whole tracks make the evaluation
 #: dominated by measurement time; a fixed window keeps runs comparable across
@@ -67,6 +78,15 @@ def make_proposer(system: str, seed: int) -> Proposer:
     if system == "heuristic":
         return heuristic.propose
     raise KeyError(f"{system!r} is not a loop system; have {LOOP_SYSTEMS}")
+
+
+@dataclass(frozen=True, slots=True)
+class AgentOptions:
+    """Everything the agent systems need that the other systems do not."""
+
+    model: str = DEFAULT_MODEL
+    effort: str = ""
+    cassette_mode: str | None = None
 
 
 @dataclass
@@ -108,6 +128,7 @@ def run_cell(
     norm: str = "l2",
     optimizer_budget: int = 250,
     min_useful_distance: float = MIN_USEFUL_DISTANCE,
+    agent_options: AgentOptions | None = None,
 ) -> tuple[list[RunTrace], SkippedCell | None]:
     """Run one (track, degradation, seed) cell across systems.
 
@@ -142,9 +163,36 @@ def run_cell(
         "degradation_lossy": degradation.is_lossy,
     }
 
+    options = agent_options or AgentOptions()
     traces: list[RunTrace] = []
     for system in systems:
         if system == "optimizer":
+            continue
+        if system in AGENT_SYSTEMS:
+            # A fresh supervisor per cell: working memory is per-track by
+            # design, and carrying it across cells would leak one track's
+            # attempts into another's decisions and quietly break the pairing.
+            agent = build_system(
+                system,
+                model=options.model,
+                effort=options.effort,
+                cassette=cassette_for(options.model, mode=options.cassette_mode),
+            )
+            traces.append(
+                agent.annotate(
+                    run_loop(
+                        system,
+                        degraded,
+                        target,
+                        agent.propose,
+                        config=config,
+                        norm=norm,
+                        model=options.model if system == AGENT_NAME else "",
+                        effort=options.effort if system == AGENT_NAME else "",
+                        **shared,  # type: ignore[arg-type]
+                    )
+                )
+            )
             continue
         traces.append(
             run_loop(
@@ -191,13 +239,14 @@ def run_matrix(
     split: str = "test",
     kinds: Sequence[DegradationKind] = ALL_KINDS,
     seeds: Sequence[int] = (0, 1, 2),
-    systems: Sequence[str] = ALL_SYSTEMS,
+    systems: Sequence[str] = FREE_SYSTEMS,
     out_dir: str | Path = "results/traces",
     config: CriticConfig | None = None,
     norm: str = "l2",
     optimizer_budget: int = 250,
     clip_seconds: float = CLIP_SECONDS,
     min_useful_distance: float = MIN_USEFUL_DISTANCE,
+    agent_options: AgentOptions | None = None,
     verbose: bool = True,
 ) -> RunReport:
     """Run the full matrix and write one trace per run.
@@ -228,6 +277,7 @@ def run_matrix(
             norm=norm,
             optimizer_budget=optimizer_budget,
             min_useful_distance=min_useful_distance,
+            agent_options=agent_options,
         )
 
         if skipped is not None:

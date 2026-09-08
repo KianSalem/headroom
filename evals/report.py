@@ -270,7 +270,16 @@ def render_comparisons(traces: Sequence[RunTrace], reference: str = "heuristic")
 
 def write_markdown(traces: Sequence[RunTrace], path: str | Path) -> Path:
     table = aggregate(traces)
-    body = render_markdown(table) + "\n" + render_comparisons(traces)
+    body = "\n".join(
+        part
+        for part in (
+            render_markdown(table),
+            render_comparisons(traces),
+            render_roles(traces),
+            render_spend(traces),
+        )
+        if part
+    )
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(body)
@@ -291,8 +300,137 @@ def write_json(traces: Sequence[RunTrace], path: str | Path) -> Path:
             asdict(paired(traces, s, "heuristic"))
             for s in sorted({t.system for t in traces} - {"heuristic"})
         ],
+        "roles": {
+            system: [asdict(r) for r in role_breakdown(traces, system)]
+            for system in agent_systems(traces)
+        },
+        "cost_usd": round(sum(t.total_cost_usd for t in traces), 6),
     }
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2, default=str) + "\n")
     return out
+
+
+@dataclass(frozen=True, slots=True)
+class RoleStats:
+    """One specialist's contribution, recovered from the per-step trace."""
+
+    role: str
+    turns: int
+    edits: int
+    helped: int
+    #: Fraction of this role's turns that lowered the distance. The number
+    #: worth looking at, because a specialist that is consulted often and helps
+    #: rarely is a routing problem rather than a prompt problem.
+    hit_rate: float
+    edits_per_turn: float
+
+
+def role_breakdown(traces: Sequence[RunTrace], system: str) -> list[RoleStats]:
+    """Per-specialist statistics for one agent system.
+
+    Derived from the steps rather than stored separately: a step records which
+    role moved and the resulting distance, so whether the move helped is a
+    comparison with the step before it. Nothing to keep in sync.
+    """
+    turns: Counter[str] = Counter()
+    edits: Counter[str] = Counter()
+    helped: Counter[str] = Counter()
+    for trace in traces:
+        if trace.system != system:
+            continue
+        previous = trace.initial_distance
+        for step in trace.steps:
+            if step.action and step.role:
+                turns[step.role] += 1
+                edits[step.role] += step.n_edits
+                if step.distance_score < previous:
+                    helped[step.role] += 1
+            previous = step.distance_score
+    return [
+        RoleStats(
+            role=role,
+            turns=n,
+            edits=edits[role],
+            helped=helped[role],
+            hit_rate=helped[role] / n if n else 0.0,
+            edits_per_turn=edits[role] / n if n else 0.0,
+        )
+        for role, n in sorted(turns.items(), key=lambda kv: -kv[1])
+    ]
+
+
+def agent_systems(traces: Sequence[RunTrace]) -> list[str]:
+    return sorted({t.system for t in traces if any(s.role for s in t.steps)})
+
+
+def render_roles(traces: Sequence[RunTrace]) -> str:
+    """Specialist breakdown for every agent system present.
+
+    One turn is one render, however many edits the specialist bundled into it,
+    so `edits/turn` above 1.0 is the coordinated-edit claim actually happening
+    rather than being asserted.
+    """
+    systems = agent_systems(traces)
+    if not systems:
+        return ""
+    lines = [
+        "### Specialists",
+        "",
+        "One turn is one render, however many edits the specialist bundled into "
+        "it. `edits/turn` above 1.00 is the coordinated-edit claim actually "
+        "happening; a low hit rate on a frequently-consulted role is a routing "
+        "problem rather than a prompt problem.",
+        "",
+    ]
+    for system in systems:
+        rows = role_breakdown(traces, system)
+        if not rows:
+            continue
+        lines.append(f"**`{system}`**")
+        lines.append("")
+        lines.append("| specialist | turns | edits | edits/turn | helped | hit rate |")
+        lines.append("|---|---|---|---|---|---|")
+        lines.extend(
+            f"| {r.role} | {r.turns} | {r.edits} | {r.edits_per_turn:.2f} | "
+            f"{r.helped} | {r.hit_rate:.0%} |"
+            for r in rows
+        )
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def render_spend(traces: Sequence[RunTrace]) -> str:
+    """What the table cost to produce, measured rather than estimated."""
+    billed = [t for t in traces if t.total_cost_usd > 0.0]
+    if not billed:
+        return (
+            "### Cost\n\n"
+            "$0.0000. Every system in this table is arithmetic, and no API call "
+            "was made to produce it.\n"
+        )
+    models = sorted({t.model or "unknown" for t in billed})
+    lines = [
+        "### Cost",
+        "",
+        "| model | runs | tokens in | tokens out | cached in | cost |",
+        "|---|---|---|---|---|---|",
+    ]
+    for model in models:
+        rows = [t for t in billed if (t.model or "unknown") == model]
+        lines.append(
+            f"| `{model}` | {len(rows)} | {sum(t.total_input_tokens for t in rows):,} | "
+            f"{sum(t.total_output_tokens for t in rows):,} | "
+            f"{sum(t.total_cache_read_tokens for t in rows):,} | "
+            f"${sum(t.total_cost_usd for t in rows):.4f} |"
+        )
+    replayed = sum(1 for t in billed if t.replayed_from_cassette)
+    lines.append("")
+    lines.append(
+        f"Total **${sum(t.total_cost_usd for t in billed):.4f}**, from usage the "
+        f"API returned rather than an estimate. {replayed} of {len(billed)} runs "
+        "replayed from a committed cassette, so reproducing this table costs "
+        "nothing; the figure is what it cost to record."
+    )
+    return "\n".join(lines) + "\n"

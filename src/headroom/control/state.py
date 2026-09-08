@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Final
+from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,7 +22,9 @@ from headroom.target.profile import TargetProfile
 
 #: Bumped whenever the trace layout changes. Old traces stay readable, which
 #: matters because the report is generated from traces, never from live runs.
-TRACE_SCHEMA_VERSION: Final[str] = "1"
+#: Version 2 added the per-step agent fields (``role``, ``n_edits``,
+#: ``n_rejected``); every one has a default, so version 1 traces still load.
+TRACE_SCHEMA_VERSION: Final[str] = "2"
 
 
 class AbortReason(StrEnum):
@@ -81,6 +83,12 @@ class StepRecord(BaseModel):
     output_tokens: int = 0
     cache_read_tokens: int = 0
     cost_usd: float = 0.0
+    #: Populated by multi-agent systems: which specialist moved, how many
+    #: edits it bundled into this render, and how many of its tool calls were
+    #: refused. Zero or empty elsewhere.
+    role: str = ""
+    n_edits: int = 1
+    n_rejected: int = 0
     note: str = ""
 
 
@@ -124,6 +132,11 @@ class RunTrace(BaseModel):
     model: str = ""
     effort: str = ""
     replayed_from_cassette: bool = False
+    #: Provenance a particular system wants published that the shared loop
+    #: cannot know about -- the agent records its routing statistics here.
+    #: Empty for every other system, so one trace layout still serves all of
+    #: them and the comparison stays a comparison.
+    system_stats: dict[str, Any] = Field(default_factory=dict)
 
     def summary(self) -> str:
         outcome = "CONVERGED" if self.converged else f"abort:{self.abort_reason}"

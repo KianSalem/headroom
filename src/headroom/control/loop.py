@@ -61,6 +61,16 @@ class Proposal:
     cost_usd: float = 0.0
     #: Set when a system has decided it has nothing useful left to try.
     give_up: bool = False
+    #: Which specialist produced this move, for a multi-agent system. Empty
+    #: for every non-agent system, which is why it lives here rather than in a
+    #: subclass: one trace layout for all systems keeps the comparison honest.
+    role: str = ""
+    #: Edits bundled into this one render. The heuristic can only ever make
+    #: one; a specialist may coordinate several, and the difference is the
+    #: architecture's whole claim, so it is recorded per step.
+    n_edits: int = 1
+    #: Tool calls refused for bad arguments, bounds or ownership.
+    n_rejected: int = 0
 
 
 Proposer = Callable[[LoopState], Proposal]
@@ -280,6 +290,9 @@ def run_loop(
                 output_tokens=proposal.output_tokens,
                 cache_read_tokens=proposal.cache_read_tokens,
                 cost_usd=proposal.cost_usd,
+                role=proposal.role,
+                n_edits=proposal.n_edits,
+                n_rejected=proposal.n_rejected,
                 note=proposal.note,
             )
         )

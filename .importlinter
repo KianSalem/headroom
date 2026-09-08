@@ -17,6 +17,28 @@ source_modules =
 forbidden_modules =
     anthropic
 
+[importlinter:contract:llm-confined-to-one-module]
+name = Only agent.client may reach the model
+# The agent is where an LLM belongs, but not all of it. Routing, the tool
+# layer, the briefing filter and the working memory are the parts whose
+# behaviour the evaluation actually claims things about, so they are held to
+# the same rule as the core: no path to anthropic, therefore no API key needed
+# to test them, therefore they are tested on every fork's pull request.
+type = forbidden
+source_modules =
+    headroom.control
+    headroom.baselines
+    headroom.agent.roles
+    headroom.agent.tools
+    headroom.agent.briefing
+    headroom.agent.memory
+    headroom.agent.specialist
+    headroom.agent.supervisor
+    headroom.agent.cassette
+    headroom.agent.pricing
+forbidden_modules =
+    anthropic
+
 [importlinter:contract:core-layering]
 name = Core layers point one way
 # analysis knows nothing about processing or targets; dsp and target build on
@@ -24,6 +46,9 @@ name = Core layers point one way
 # gets changed.
 type = layers
 layers =
+    headroom.agent
+    headroom.baselines
+    headroom.control
     headroom.target
     headroom.dsp
     headroom.analysis

@@ -1,8 +1,13 @@
 """Command line interface.
 
-Only the deterministic surface exists so far: measuring audio, rendering a
-chain, and comparing a render to a target. The closed-loop commands land with
-the controller and the agent.
+``master`` is the product surface: point it at a file and either a reference
+track or a delivery preset, and it runs the closed loop and writes the result.
+It defaults to a system that needs no credential, so the demo works on a fresh
+clone; ``--system agent`` swaps in the model-backed specialists.
+
+The rest is the measurement surface -- ``analyze``, ``compare``, ``render`` --
+plus the evaluation commands, which build the results table from traces on
+disk rather than from a live run.
 """
 
 from __future__ import annotations
@@ -11,7 +16,10 @@ import argparse
 import sys
 from pathlib import Path
 
+from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
+
 from headroom import __version__
+from headroom.agent.client import DEFAULT_MODEL
 from headroom.analysis.features import analyze
 from headroom.audio import load, save
 from headroom.dsp.backends.pedalboard import render_chain
@@ -59,6 +67,143 @@ def _cmd_presets(_: argparse.Namespace) -> int:
             f"{name:14s} {preset.lufs_integrated:+6.1f} LUFS  "
             f"<= {preset.true_peak_dbtp:+.1f} dBTP   {preset.note}\n"
         )
+    return 0
+
+
+def _target_for(args: argparse.Namespace) -> TargetProfile:
+    """Reference match, delivery preset, or a reference at a preset's level.
+
+    The third is the request a person actually has: match that record, but hand
+    me something Spotify will not turn down.
+    """
+    if args.reference:
+        target = TargetProfile.from_features(
+            analyze(load(args.reference)), label=Path(args.reference).stem
+        )
+        return target.with_loudness(args.target) if args.target else target
+    return TargetProfile.from_preset(args.target)
+
+
+def _cmd_master(args: argparse.Namespace) -> int:
+    from headroom.control.critic import CriticConfig
+    from headroom.control.loop import run_loop
+
+    source = load(args.input)
+    target = _target_for(args)
+    config = CriticConfig(render_budget=args.budget)
+
+    if args.system in AGENT_SYSTEMS:
+        from headroom.agent.factory import build_system
+
+        agent = build_system(args.system, model=args.model, effort=args.effort)
+        trace = agent.annotate(
+            run_loop(
+                args.system,
+                source,
+                target,
+                agent.propose,
+                config=config,
+                model=args.model if args.system == "agent" else "",
+                effort=args.effort,
+            )
+        )
+    else:
+        from evals.runner import make_proposer
+
+        trace = run_loop(args.system, source, target, make_proposer(args.system, 0), config=config)
+
+    out = sys.stdout
+    out.write(f"{target.describe()}\n")
+    out.write(f"system {trace.system}" + (f" ({trace.model})" if trace.model else "") + "\n\n")
+    for step in trace.steps:
+        marker = "*" if step.action else " "
+        out.write(
+            f"{marker} {step.index:2d} {step.distance_score:7.4f} "
+            f"{step.n_out_of_tolerance:2d} out  {step.action or step.verdict:26s} "
+            f"{step.note[:80]}\n"
+        )
+    out.write(
+        f"\ndistance {trace.initial_distance:.4f} -> {trace.final_distance:.4f}  "
+        f"recovery {trace.recovery_ratio:+.3f}  "
+        f"{'converged' if trace.converged else f'stopped: {trace.abort_reason}'}\n"
+    )
+    out.write(f"{trace.n_renders} renders, {trace.wall_time_s:.1f}s")
+    if trace.total_cost_usd:
+        out.write(
+            f", ${trace.total_cost_usd:.4f} "
+            f"({trace.total_input_tokens} in / {trace.total_output_tokens} out"
+            f"{', replayed' if trace.replayed_from_cassette else ''})"
+        )
+    out.write("\n\n" + trace.final_chain.describe() + "\n")
+
+    save(render_chain(source, trace.final_chain), args.output)
+    out.write(f"wrote {args.output}\n")
+    if args.chain:
+        Path(args.chain).write_text(trace.final_chain.model_dump_json(indent=2) + "\n")
+        out.write(f"wrote {args.chain}\n")
+    if args.trace:
+        Path(args.trace).write_text(trace.model_dump_json(indent=2) + "\n")
+        out.write(f"wrote {args.trace}\n")
+    return 0
+
+
+def _cmd_eval(args: argparse.Namespace) -> int:
+    from evals.corpus import load_manifest
+    from evals.runner import AgentOptions, run_matrix
+
+    report = run_matrix(
+        load_manifest(args.manifest),
+        split=args.split,
+        seeds=tuple(range(args.seeds)),
+        systems=tuple(args.systems),
+        out_dir=args.out,
+        clip_seconds=args.clip_seconds,
+        agent_options=AgentOptions(
+            model=args.model, effort=args.effort, cassette_mode=args.cassette_mode
+        ),
+    )
+    sys.stdout.write(report.summary() + "\n")
+    return 0
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    from evals.report import write_json, write_markdown
+    from evals.runner import load_traces
+
+    traces = load_traces(args.traces)
+    if not traces:
+        sys.stderr.write(f"no traces in {args.traces}\n")
+        return 1
+    write_markdown(traces, args.markdown)
+    write_json(traces, args.json_out)
+    sys.stdout.write(f"{len(traces)} traces -> {args.markdown}, {args.json_out}\n")
+    if args.html:
+        from evals.corpus import load_manifest
+        from evals.html_report import build as build_html
+        from evals.html_report import make_showcase
+        from evals.runner import clip
+
+        showcases = []
+        if args.manifest and Path(args.manifest).exists():
+            tracks = {t.track_id: t for t in load_manifest(args.manifest).tracks}
+            # One showcase per degradation kind, so a listener hears each
+            # failure mode once rather than the same track nine times.
+            seen: set[str] = set()
+            for trace in traces:
+                if trace.degradation_kind in seen or trace.track_id not in tracks:
+                    continue
+                seen.add(trace.degradation_kind)
+                showcases.append(
+                    make_showcase(
+                        trace.track_id,
+                        trace.degradation_kind,
+                        trace.degradation_seed,
+                        traces,
+                        source=clip(tracks[trace.track_id].load(), args.clip_seconds),
+                    )
+                )
+        build_html(traces, args.html, showcases)
+        sys.stdout.write(f"wrote {args.html} with {len(showcases)} listening examples\n")
     return 0
 
 
@@ -116,6 +261,58 @@ def build_parser() -> argparse.ArgumentParser:
     p_synth.add_argument("--out", default="audio/synthetic")
     p_synth.add_argument("--seconds", type=float, default=24.0)
     p_synth.set_defaults(func=_cmd_synth)
+
+    p_master = sub.add_parser(
+        "master", help="run the closed loop against a reference or a delivery preset"
+    )
+    p_master.add_argument("input")
+    p_master.add_argument("output")
+    p_master.add_argument("--reference", help="match this file's sonic profile")
+    p_master.add_argument(
+        "--target",
+        choices=sorted(PRESETS),
+        help="delivery loudness target, alone or with --reference",
+    )
+    p_master.add_argument(
+        "--system",
+        default="agent-scaffold",
+        choices=("heuristic", "agent-scaffold", "agent"),
+        help="agent-scaffold is the full architecture with no model call, so it needs no key",
+    )
+    p_master.add_argument("--model", default=DEFAULT_MODEL)
+    p_master.add_argument(
+        "--effort", default="", help="output_config.effort, where the model takes it"
+    )
+    p_master.add_argument("--budget", type=int, default=14, help="render budget")
+    p_master.add_argument("--chain", help="also write the chain as JSON")
+    p_master.add_argument("--trace", help="also write the full run trace as JSON")
+    p_master.set_defaults(func=_cmd_master)
+
+    p_eval = sub.add_parser("eval", help="run the evaluation matrix and write traces")
+    p_eval.add_argument("--manifest", default="results/corpus_manifest.json")
+    p_eval.add_argument("--split", default="test", choices=("train", "test"))
+    p_eval.add_argument("--seeds", type=int, default=3)
+    p_eval.add_argument("--systems", nargs="+", default=list(FREE_SYSTEMS))
+    p_eval.add_argument("--out", default="results/traces")
+    p_eval.add_argument("--clip-seconds", type=float, default=20.0)
+    p_eval.add_argument("--model", default=DEFAULT_MODEL)
+    p_eval.add_argument("--effort", default="")
+    p_eval.add_argument(
+        "--cassette-mode",
+        default=None,
+        choices=("auto", "replay", "record", "off"),
+        help="replay costs nothing and fails on a prompt change",
+    )
+    p_eval.set_defaults(func=_cmd_eval)
+
+    p_report = sub.add_parser("report", help="build the results table from traces on disk")
+    p_report.add_argument("--traces", default="results/traces")
+    p_report.add_argument("--markdown", default="results/RESULTS.md")
+    p_report.add_argument("--json-out", default="results/results.json")
+    p_report.add_argument("--html", default="", help="also build the listening report here")
+    p_report.add_argument("--manifest", default="results/corpus_manifest.json")
+    p_report.add_argument("--clip-seconds", type=float, default=20.0)
+    p_report.set_defaults(func=_cmd_report)
 
     p_corpus = sub.add_parser("corpus", help="build a train/test manifest from a directory")
     p_corpus.add_argument("root")

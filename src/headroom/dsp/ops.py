@@ -224,6 +224,19 @@ def op_gain(gain_db: float) -> GainOp:
         raise _rethrow(exc) from exc
 
 
+def op_eq_band(
+    shape: str = "peak", freq_hz: float = 1000.0, gain_db: float = 0.0, q: float = 0.707
+) -> EqBand:
+    """A single filter band. Exists so no caller has to construct :class:`EqBand`
+    directly: the raw model raises pydantic's ``ValidationError``, which the tool
+    layer does not recognise, so an out-of-range filter would escape as an
+    exception instead of arriving as a structured refusal."""
+    try:
+        return EqBand(shape=shape, freq_hz=freq_hz, gain_db=gain_db, q=q)  # type: ignore[arg-type]
+    except ValidationError as exc:
+        raise _rethrow(exc) from exc
+
+
 def op_eq(bands: Sequence[EqBand | Mapping[str, object]]) -> EqOp:
     try:
         return EqOp(

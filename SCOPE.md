@@ -16,13 +16,15 @@ numbers a stranger can **reproduce**, not a complete research programme.
 | Distance metric — tolerance-scaled, per-feature breakdown | **done** |
 | Corpus loader — MUSDB18-HQ, stable train/test split | **done** |
 | CLI — `analyze`, `render`, `compare`, `presets`, `corpus` | **done** |
-| Heuristic controller — proportional, damped, no LLM | not started |
-| Optimizer ceiling (CMA-ES) + random-hillclimb floor | not started |
-| Degradation suite + eval runner | not started |
-| Supervisor + specialists + critic, bounded tool layer | not started |
-| Working memory (tier 1), oscillation detection, named aborts | not started |
-| Reference matching and delivery presets end to end | partly — targets exist, no controller |
-| HTML report with audio players and the agent's chain | not started |
+| CLI — `master`, `eval`, `report` | **done** |
+| Heuristic controller — proportional, damped, no LLM | **done** |
+| Optimizer ceiling (multi-start Powell) + random-hillclimb floor | **done** |
+| Degradation suite + eval runner | **done** |
+| Supervisor + specialists + critic, bounded tool layer | **done** |
+| Working memory (tier 1), oscillation detection, named aborts | **done** |
+| Record/replay cassettes, measured token cost | **done** |
+| Reference matching and delivery presets end to end | **done** — `headroom master` |
+| HTML report with audio players and the agent's chain | **done** |
 
 ## Deferred, with the reason
 
@@ -59,7 +61,38 @@ degradation produces it.
 
 **The limiter belongs to Loudness alone.** SPEC §8.3 gives `op_limiter` to
 Dynamics and the limiter ceiling to Loudness, then states that two specialists
-must never edit the same op type.
+must never edit the same op type. Loudness wins the tie because
+`true_peak_dbtp` is the feature the limiter exists to control.
+
+**The tool surface is absolute and upsert-keyed, with no op ids.** SPEC §7.2
+implies id-addressed edits. In practice `set_gain(gain_db=-2.0)` means "the
+gain op is −2 dB": there is one gain op, one compressor, one EQ, and an EQ
+band is identified by which analysis band it corrects. Exposing ids would buy
+configurations no scored dimension asks for, in exchange for hallucinated
+identifiers and edits to stale ops. Restating a value is detected and reported
+as a no-op instead of spending a render to discover the chain did not change.
+
+**Ownership is enforced by omission, and the violation rate is reported.** A
+specialist is not asked to respect the boundary; it is never handed the tools
+that cross it. A call to another role's tool returns a structured refusal
+naming the owner, and the count appears in the trace — a prompt that leaks the
+boundary is a prompt problem, and this is how it becomes visible.
+
+**Routing is deterministic; there is no supervisor model call.** Picking the
+specialist that owns the largest weighted error is arithmetic. Spending a model
+call on it would add cost, latency and a failure mode for nothing. What the
+supervisor does own is harder and still deterministic: rerouting around a stuck
+role, accepting "nothing I own can move this" as an answer, refusing a render
+whose chain is audibly unchanged, and canonicalizing op order.
+
+**An `agent-scaffold` system was added as a controlled ablation.** Not in the
+spec. It is the full architecture — supervisor, tool layer, working memory,
+critic — with a proportional policy where the model goes, using the heuristic's
+correction constants *imported rather than copied*. It differs from the
+heuristic in exactly one respect: it may make several coordinated edits per
+render. So the heuristic-to-scaffold gap measures the architecture and the
+scaffold-to-agent gap measures the model. Neither number is interpretable
+alone, and it costs nothing to run.
 
 **`op_expander` added.** Not in the spec. Without it the `over_compress` and
 `over_expand` degradations are unrecoverable by construction: a compressor
@@ -117,15 +150,18 @@ under `audio/demo/`, so hosting them publicly is unambiguous.
 
 ## Cost
 
-The agent evaluation is engineered to run for about ten dollars.
+The agent evaluation is engineered to run for a few dollars.
 
 - **Record/replay cassettes.** Every API call is recorded on first run and
   replayed at zero cost afterwards. Cassettes are committed, so development
   iteration is free after the first pass, CI can test the agent layer with no
   API key (a public repo cannot expose secrets to fork pull requests), and a
   stranger can reproduce the whole results table for nothing.
-- **Five of seven systems cost nothing** — null, random, hillclimb, heuristic
-  and the optimizer ceiling are pure DSP.
-- Agent runs use Sonnet 5 at low-to-medium effort with a 12-step cap, prompt
-  caching, and render memoization. Development runs on Haiku 4.5.
-- Measured spend is reported in the README rather than estimated.
+- **Six of seven systems cost nothing** — null, random, hillclimb, heuristic,
+  the optimizer ceiling and the agent scaffold are pure arithmetic. `headroom
+  eval` defaults to exactly those, so a fresh clone reproduces a full results
+  table with no credential.
+- Agent runs default to Haiku 4.5 with a 14-render cap, prompt caching on the
+  role prompt and tool schemas, and render and measurement memoization.
+- A missing price raises rather than defaulting to zero: a cost of $0.00 is the
+  most misleading number this project could print.
