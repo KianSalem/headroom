@@ -9,6 +9,7 @@ build/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+.import_linter_cache/
 .coverage
 htmlcov/
 
@@ -34,10 +35,11 @@ reports/
 .vscode/
 
 # --- Re-inclusions. Must come last: later patterns win. ---
-# Small CC-licensed demo clips and tiny synthetic test fixtures are committed
-# so the repo is runnable and the results table is reproducible offline.
-!audio/demo/
-!audio/demo/**
+# Tiny synthetic test fixtures and the results tree (traces, manifests, and
+# the synthetic listening page's MP3s) are committed so the results table is
+# reproducible offline. `report --html` refuses to write audio for any corpus
+# whose manifest is not marked redistributable, so nothing licensed can land
+# under results/ by accident.
 !tests/fixtures/
 !tests/fixtures/**
 !results/

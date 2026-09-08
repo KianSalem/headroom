@@ -17,16 +17,21 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          python-version: "3.12"
 
       - name: Install ffmpeg
-        # Used only as an independent reference for the true-peak meter. The
-        # relevant test skips itself when ffmpeg is absent.
+        # An independent reference for the true-peak meter, the decoder behind
+        # fetch-corpus, and the MP3 encoder for the listening page. Every test
+        # that needs it skips itself when it is absent.
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ffmpeg;
           else brew install ffmpeg; fi
 
       - name: Install
-        run: uv sync --all-extras
+        # --locked: the numeric stack (numpy, scipy, librosa, pedalboard) can
+        # shift output across releases, and a results table is only
+        # reproducible against the versions that produced it.
+        run: uv sync --locked --all-extras
 
       - name: Lint
         run: |
