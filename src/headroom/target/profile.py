@@ -24,7 +24,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from headroom.analysis.features import FeatureVector
 
-from .distance import FAMILY_WEIGHTS, SCORED, SPEC_BY_NAME, Direction, to_scored
+from .distance import (
+    FAMILY_WEIGHTS,
+    SCORED,
+    SPEC_BY_NAME,
+    TRUE_PEAK_COMPLIANCE_TOL,
+    Direction,
+    to_scored,
+)
 
 
 class LoudnessPreset(BaseModel):
@@ -104,6 +111,9 @@ class TargetProfile(BaseModel):
             # not exceed. Treating the ceiling as a setpoint would penalize a
             # quiet master as harshly as a clipping one.
             directions={"true_peak_dbtp": "max"},
+            # A ceiling is about compliance, so it is held far tighter than
+            # the matching tolerance used when copying a reference.
+            tolerance_overrides={"true_peak_dbtp": TRUE_PEAK_COMPLIANCE_TOL},
         )
 
     @classmethod
@@ -139,6 +149,10 @@ class TargetProfile(BaseModel):
             update={
                 "targets": merged,
                 "directions": {**self.directions, "true_peak_dbtp": "max"},
+                "tolerance_overrides": {
+                    **self.tolerance_overrides,
+                    "true_peak_dbtp": TRUE_PEAK_COMPLIANCE_TOL,
+                },
                 "label": f"{self.label}+{p.name}",
                 "provenance": f"{self.provenance}; level from preset {p.name}",
             }

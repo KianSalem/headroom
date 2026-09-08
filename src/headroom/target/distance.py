@@ -65,6 +65,10 @@ FAMILY_WEIGHTS: Final[dict[str, float]] = {
 #: than ``MAX_SINGLE_EXCESS`` tolerances out. The second condition matters --
 #: a scalar threshold alone lets one badly wrong feature hide inside a good
 #: average.
+#: Tolerance for true peak when it is a delivery ceiling rather than a
+#: matching target. Compliance, not audibility.
+TRUE_PEAK_COMPLIANCE_TOL: Final[float] = 0.2
+
 CONVERGE_EPS: Final[float] = 0.05
 MAX_SINGLE_EXCESS: Final[float] = 1.0
 
@@ -114,7 +118,12 @@ def _fisher_z(r: float) -> float:
 SCORED: Final[tuple[ScoredSpec, ...]] = (
     # --- loudness ---
     ScoredSpec("lufs_integrated", "loudness", "LUFS", 0.5),
-    ScoredSpec("true_peak_dbtp", "loudness", "dBTP", 0.3),
+    # 1.0 dB for *matching*: a 1 dB true-peak difference mid-range is
+    # inaudible, and a 0.3 dB tolerance made true peak the loudest term in the
+    # breakdown for every degradation, including purely spectral ones.
+    # Delivery presets override this to TRUE_PEAK_COMPLIANCE_TOL, where the
+    # number is about not clipping a converter rather than about audibility.
+    ScoredSpec("true_peak_dbtp", "loudness", "dBTP", 1.0),
     ScoredSpec("lra", "loudness", "LU", 1.0),
     # --- dynamics ---
     ScoredSpec("crest_factor_db", "dynamics", "dB", 1.0),
