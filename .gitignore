@@ -12,16 +12,18 @@ build/
 .coverage
 htmlcov/
 
-# audio corpus - do not commit copyrighted masters or large binaries
-audio/
+# Audio: never commit the corpus or large binaries. Git ignore patterns are
+# case-sensitive on Linux, so extensions are spelled case-insensitively.
+audio/*
 corpus/
-*.wav
-*.aiff
-*.flac
-*.mp3
-*.m4a
+*.[wW][aA][vV]
+*.[aA][iI][fF][fF]
+*.[fF][lL][aA][cC]
+*.[mM][pP]3
+*.[mM]4[aA]
+*.[oO][gG][gG]
 
-# run artifacts
+# Scratch run artifacts. Published traces live in results/ and are committed.
 traces/
 reports/
 *.sqlite
@@ -30,3 +32,13 @@ reports/
 .DS_Store
 .idea/
 .vscode/
+
+# --- Re-inclusions. Must come last: later patterns win. ---
+# Small CC-licensed demo clips and tiny synthetic test fixtures are committed
+# so the repo is runnable and the results table is reproducible offline.
+!audio/demo/
+!audio/demo/**
+!tests/fixtures/
+!tests/fixtures/**
+!results/
+!results/**

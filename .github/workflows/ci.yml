@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install ffmpeg
+        # Used only as an independent reference for the true-peak meter. The
+        # relevant test skips itself when ffmpeg is absent.
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then sudo apt-get update && sudo apt-get install -y ffmpeg;
+          else brew install ffmpeg; fi
+
+      - name: Install
+        run: uv sync --all-extras
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Types
+        run: uv run mypy
+
+      - name: Import contracts
+        run: uv run lint-imports
+
+      - name: Tests
+        # No API key is available to fork pull requests, so CI covers the
+        # deterministic core only. The agent layer is tested against recorded
+        # transcripts, never a live API call.
+        run: uv run pytest -q
+        env:
+          ANTHROPIC_API_KEY: ""

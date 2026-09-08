@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "headroom"
+version = "0.1.0"
+description = "Closed-loop agent system that performs mastering-engineer work on real audio, graded by measurement."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Kian Salem" }]
+
+dependencies = [
+    "numpy>=2.1",
+    "scipy>=1.14",
+    "soundfile>=0.12",
+    "pyloudnorm>=0.1.1",
+    "librosa>=0.11",
+    "pedalboard>=0.9",
+    "pydantic>=2.9",
+]
+
+[project.optional-dependencies]
+agent = ["anthropic>=0.70"]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+]
+
+[project.scripts]
+headroom = "headroom.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# evals is shipped too: the CLI's corpus command imports it, so leaving it out
+# would make an installed headroom break on a command the help text advertises.
+packages = ["src/headroom", "evals"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "evals"]
+# ruff formats Python code blocks inside Markdown. SPEC.md's snippets are
+# hand-aligned prose, not code to be formatted, so Markdown is excluded.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "evals", "tests"]
+
+[[tool.mypy.overrides]]
+# pyloudnorm, soundfile and scipy ship no py.typed, so they resolve to Any.
+module = ["pyloudnorm.*", "soundfile.*", "scipy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pedalboard and librosa ship py.typed but do not explicitly re-export their
+# public names from __init__, so a strict run rejects pedalboard.Pedalboard.
+module = ["pedalboard.*", "librosa.*"]
+ignore_missing_imports = true
+implicit_reexport = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"

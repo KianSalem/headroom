@@ -1,0 +1,187 @@
+"""Corpus loading and the train/test split.
+
+The evaluation paradigm is degrade-and-recover: take a well-produced file,
+apply a seeded degradation, and measure how close the system gets back to the
+original. The target is the original's own feature vector, so the source
+material does not need to be a commercial master -- it needs to be
+well-produced, legally shareable, and uncompressed enough that measurement is
+not dominated by codec artifacts.
+
+That is why this uses a public corpus rather than private masters: a stranger
+can download the same files and reproduce every number in the results table.
+See ``MUSDB18_HQ`` below for the licensing terms, which are not permissive
+enough to redistribute -- so the corpus is downloaded, never vendored.
+
+**The split is by hash of the track id, not by shuffle.** A seeded shuffle
+reassigns every track when one is added, which would silently move tracks
+across the train/test boundary and invalidate previously reported numbers.
+Hashing is stable: adding a track never moves an existing one.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from collections.abc import Iterator
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Final, Literal
+
+import soundfile as sf
+from pydantic import BaseModel, ConfigDict
+
+from headroom.audio import MIN_SAMPLE_RATE, AudioBuffer, load
+
+Split = Literal["train", "test"]
+
+#: Fraction of tracks assigned to test.
+TEST_FRACTION: Final[float] = 0.35
+
+AUDIO_SUFFIXES: Final[frozenset[str]] = frozenset({".wav", ".flac", ".aiff", ".aif"})
+
+
+class CorpusSource(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    url: str
+    license: str
+    redistributable: bool
+    note: str = ""
+
+
+MUSDB18_HQ: Final[CorpusSource] = CorpusSource(
+    name="MUSDB18-HQ",
+    url="https://zenodo.org/record/3338373",
+    license="mixed CC BY-NC-SA 4.0 / 3.0; academic use; per-track terms",
+    redistributable=False,
+    note=(
+        "150 uncompressed stereo tracks with stems. Requires a one-time Zenodo "
+        "access request. Not redistributed by this repository: download it and "
+        "point --corpus at the extracted directory."
+    ),
+)
+
+
+class TrackRecord(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    track_id: str
+    path: str
+    sample_rate: int
+    duration_s: float
+    channels: int
+    split: Split
+    license: str = ""
+    source: str = ""
+
+    def load(self) -> AudioBuffer:
+        return load(self.path)
+
+
+class CorpusManifest(BaseModel):
+    """A frozen record of which tracks exist and which split each belongs to.
+
+    Committed alongside results so a reader can verify that the reported test
+    numbers came from tracks that were never used for tuning.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    corpus_name: str
+    created_at: str
+    test_fraction: float
+    split_method: str = "blake2b(track_id) -- stable under insertion"
+    tracks: tuple[TrackRecord, ...] = ()
+
+    def train(self) -> tuple[TrackRecord, ...]:
+        return tuple(t for t in self.tracks if t.split == "train")
+
+    def test(self) -> tuple[TrackRecord, ...]:
+        """Every headline number comes from these, and nothing is ever tuned on
+        them. Kept as a separate accessor so a tuning path cannot reach them by
+        iterating ``tracks`` out of habit."""
+        return tuple(t for t in self.tracks if t.split == "test")
+
+    def summary(self) -> str:
+        train, test = self.train(), self.test()
+        total_s = sum(t.duration_s for t in self.tracks)
+        return (
+            f"{self.corpus_name}: {len(self.tracks)} tracks "
+            f"({len(train)} train / {len(test)} test), "
+            f"{total_s / 60.0:.1f} min total"
+        )
+
+
+def assign_split(track_id: str, test_fraction: float = TEST_FRACTION) -> Split:
+    """Deterministic split from the track id alone.
+
+    Stable under insertion: adding a track never reassigns an existing one, so
+    a number reported last month still refers to the same test set.
+    """
+    digest = hashlib.blake2b(track_id.encode(), digest_size=8).digest()
+    position = int.from_bytes(digest, "big") / float(1 << 64)
+    return "test" if position < test_fraction else "train"
+
+
+def iter_audio_files(root: Path) -> Iterator[Path]:
+    for path in sorted(root.rglob("*")):
+        if path.is_file() and path.suffix.lower() in AUDIO_SUFFIXES:
+            yield path
+
+
+def scan_directory(
+    root: str | Path,
+    corpus_name: str = MUSDB18_HQ.name,
+    test_fraction: float = TEST_FRACTION,
+    license_note: str = MUSDB18_HQ.license,
+    min_duration_s: float = 10.0,
+) -> CorpusManifest:
+    """Build a manifest by scanning a directory of audio files.
+
+    Reads headers only -- no audio is decoded -- so scanning a large corpus is
+    fast. Files below ``min_duration_s`` or under the minimum sample rate are
+    skipped with their reason recorded by the caller, because a two-second clip
+    cannot support a 3 s short-term loudness window.
+    """
+    root_path = Path(root).expanduser().resolve()
+    if not root_path.is_dir():
+        raise NotADirectoryError(f"corpus root not found: {root_path}")
+
+    records: list[TrackRecord] = []
+    for path in iter_audio_files(root_path):
+        info = sf.info(str(path))
+        if info.samplerate < MIN_SAMPLE_RATE or info.duration < min_duration_s:
+            continue
+        if info.channels > 2:
+            continue
+        track_id = path.relative_to(root_path).with_suffix("").as_posix()
+        records.append(
+            TrackRecord(
+                track_id=track_id,
+                path=str(path),
+                sample_rate=int(info.samplerate),
+                duration_s=float(info.duration),
+                channels=int(info.channels),
+                split=assign_split(track_id, test_fraction),
+                license=license_note,
+                source=corpus_name,
+            )
+        )
+
+    return CorpusManifest(
+        corpus_name=corpus_name,
+        created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        test_fraction=test_fraction,
+        tracks=tuple(records),
+    )
+
+
+def save_manifest(manifest: CorpusManifest, path: str | Path) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(json.loads(manifest.model_dump_json()), indent=2) + "\n")
+
+
+def load_manifest(path: str | Path) -> CorpusManifest:
+    return CorpusManifest.model_validate_json(Path(path).read_text())

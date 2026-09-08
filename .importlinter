@@ -1,0 +1,30 @@
+[importlinter]
+root_package = headroom
+# Required to reason about anthropic, which lives outside the root package.
+include_external_packages = True
+
+[importlinter:contract:no-llm-in-core]
+name = Deterministic core imports nothing from anthropic
+# SPEC 15: analysis/, dsp/ and target/ are the measurement and processing core.
+# If an LLM can reach into them, the objective function is no longer
+# independent of the thing being graded, and "no LLM-as-judge in the primary
+# metric" stops being enforceable by anything but discipline.
+type = forbidden
+source_modules =
+    headroom.analysis
+    headroom.dsp
+    headroom.target
+forbidden_modules =
+    anthropic
+
+[importlinter:contract:core-layering]
+name = Core layers point one way
+# analysis knows nothing about processing or targets; dsp and target build on
+# analysis. Keeps the feature vector definable without reference to how audio
+# gets changed.
+type = layers
+layers =
+    headroom.target
+    headroom.dsp
+    headroom.analysis
+    headroom.audio
