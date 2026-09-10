@@ -286,12 +286,19 @@ the bound is the slowest thing here, so it was run on the shorter clips. The
 percentages of bound above come from the 6.8 s condition, and the 20 s table is
 un-normalised.
 
-**Two measurement defects were found in review and are not fixed in v1.** The
-per-band stereo width and the attack-time features are both computed slightly
-wrong, in ways quantified in [SCOPE.md](../SCOPE.md#known-issues-in-v1). Every
-committed result and cassette is downstream of the metric, so fixing them means
-re-running everything; that is the first item of the next version rather than a
-silent edit to this one.
+**Four defects found in review are fixed in v1.1, and every arithmetic row
+here was re-run on the corrected metric.** Per-band stereo width and attack
+time were both measured wrong; so were two of the heuristic's stereo
+corrections, and the floors' action format, which could trip the oscillation
+detector on a fabricated sign. What each fix moved is quantified in
+[SCOPE.md](../SCOPE.md#known-issues-in-v1-and-what-v11-did-about-them), in
+tolerance units over the whole committed corpus: attack time by a median of
+4.74 tolerances, per-band width by 0.004 dB on real music, and the other
+eighteen dimensions by nothing at all. The model-backed rows could *not* be
+re-run. Their cassettes carry the measured numbers inside the prompts, so a
+metric change invalidates them by construction, and re-recording needs a
+credential. Where an `agent` number appears below it still describes the v1
+metric, and says so.
 
 **Real-music audio is not published.** MUSDB18's licence is non-commercial with
 per-track terms, so results are numbers only, with no listening page. The

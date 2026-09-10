@@ -478,48 +478,83 @@ exception, recorded before cassettes were committed (see Known issues).
 - A missing price raises rather than defaulting to zero: a cost of $0.00 is the
   most misleading number this project could print.
 
-## Known issues in v1
+## Known issues in v1, and what v1.1 did about them
 
-Found in a review pass after the results were recorded. Each is left as is
-here, because every committed result and every cassette is downstream of the
-metric: a change to a measured value changes the specialist prompts, which
-changes the cassette digests, which turns every agent row into a cache miss.
-Fixing them and re-running the four conditions plus the bound is the first item
-of the next version. Each is quantified so a reader can judge how much it
-matters.
+Found in a review pass after the v1 results were recorded, and left standing
+at the time because every committed result and every cassette is downstream
+of the metric: a change to a measured value changes the specialist prompts,
+which changes the cassette digests, which turns every agent row into a cache
+miss. v1.1 pays that bill deliberately. Four of the five are fixed; the fifth
+needs a credential and is still open.
 
-- **Per-band stereo width leaks out-of-band energy.** `width_i` is meant to be
-  the side/mid power ratio inside band *i*. The implementation scales each
+The effect of each fix is measured rather than asserted. `headroom vectors`
+dumps the scored vector for a corpus and `headroom vectors-diff` reports the
+per-dimension drift between two dumps in tolerance units, so "what did this
+change move, and where" is a command rather than a reading of the diff. Over
+all 22 committed corpus files, v1 against v1.1:
+
+| dimensions | worst drift | median drift |
+|---|---|---|
+| `attack_log2_ms` | 9.18 tol (a 9.3x correction, on one 7 s excerpt) | **4.74 tol** (3.2x) |
+| `width_0` .. `width_8` | 0.78 tol (0.78 dB, synthetic) | 0.004 tol (0.004 dB) |
+| the other 18 | **0.0000** | **0.0000** |
+
+That last row is the useful one: the two fixes moved exactly the two feature
+families they were aimed at and nothing else, and the eighteen untouched
+dimensions are bit-identical across the change.
+
+- **Per-band stereo width leaked out-of-band energy.** **Fixed.** `width_i` is
+  the side/mid power ratio inside band *i*. The implementation scaled each
   band's normalised fraction by the *total* Welch power, including bins below
-  20 Hz and above 20 kHz, so the ratio picks up a factor of
+  20 Hz and above 20 kHz, so the ratio picked up a factor of
   (total/in-band)<sub>side</sub> ÷ (total/in-band)<sub>mid</sub>. On the six
-  real-music tracks that factor moves `width_i` by at most 0.004 dB, below the
-  0.001 display precision of the prompts in a few cells and above it in others;
-  on the synthetic corpus, which carries sub-20 Hz content, by up to 0.74 dB.
-  Fix: sum raw band power for mid and side directly.
-- **Attack time is inflated by decaying pre-onset tails.** The 10% crossing is
-  searched from the start of the 10 ms pre-onset window, and the baseline is
-  that window's minimum, so a tail still decaying from the previous hit is
-  already above the 10% threshold and the rise is measured from the window's
-  start. On the real tracks the median attack reads 12–18 ms where a search
-  from the last sub-threshold sample gives 3.5–5.7 ms; on the synthetic tracks
-  10.5 ms against 1.25 ms. `attack_log2_ms` is one of the five dynamics
-  dimensions, the role both controllers are worst at, and this is part of why.
-- **Two stereo corrections differ between the scaffold and the heuristic.**
-  `correlation_z` and `mono_compat_db` share constants and clamps but are
-  applied in dB on the scaffold side and as a linear factor on the heuristic
-  side (a maximum step of 1.78× against 1.5×). The nine per-band `width_i`
-  corrections, and every other role, are identical. The ablation claim is
-  therefore "one designed difference and one incidental one", and is worded
-  that way in the code.
-- **The original synthetic agent row does not replay.** Its 18 cells were
-  recorded to a scratch directory before cassettes were committed, and the
-  prompts have changed since. The traces name the gap in their
-  `system_stats.client.cassette.path` field. The synthetic table is superseded
-  by the real-music runs, all of which replay bit-identically.
-- **The random floors feed the oscillation detector a random sign.** The
-  `random` and `hillclimb` action strings end in a random number purely to
-  satisfy the action format, so roughly 1% of their steps can trip the critic's
-  sign-flip detector. They are floors at +0.000 either way; the fix changes
-  their RNG sequence and so waits for a re-run.
+  real-music tracks that factor moved `width_i` by at most 0.004 dB; on the
+  synthetic corpus, which carries sub-20 Hz content, by up to 0.78 dB. The fix
+  sums raw band power for mid and side directly, through a new
+  `spectral.band_power` that `band_energy` now normalises. A regression test
+  adds content above 20 kHz to both channels -- pure mid, in no scored band --
+  and asserts that not one width reading moves.
+- **Attack time was inflated by decaying pre-onset tails.** **Fixed.** The 10%
+  crossing was searched forward from the start of the 10 ms pre-onset window
+  while the baseline was that window's *minimum*, so a tail still decaying
+  from the previous hit was already above the threshold and the rise was timed
+  from the window's edge. The fix walks back from the onset's peak to the last
+  sample below the 10% threshold, which is guaranteed to exist because the
+  baseline is the window minimum. The regression test builds an envelope that
+  decays across the whole pre-onset window and then rises in 8 frames: the old
+  code reports 12.0 ms, the true 10-90% rise is 1.6 ms.
+- **Two stereo corrections differed between the scaffold and the heuristic.**
+  **Fixed.** `correlation_z` and `mono_compat_db` shared constants and clamps
+  but were applied in dB on the scaffold side and as a linear factor on the
+  heuristic side, a maximum step of 1.78x against 1.5x. The heuristic was the
+  odd one out against its own per-band branch as well as against the scaffold,
+  and now converts through dB like both. The ablation is back to one designed
+  difference -- the scaffold may bundle several edits into one render -- and no
+  incidental ones.
+- **The random floors fed the oscillation detector a random sign.**
+  **Fixed.** The `random` and `hillclimb` action strings ended in a random
+  number purely to satisfy the `"<param> <signed delta>"` format, so roughly
+  1% of their steps could trip the critic's sign-flip detector. A random op has
+  no direction to report and no longer claims one; the critic's parser fails on
+  the trailing token instead of being handed a fabricated sign. This changes
+  the floors' RNG sequence, which is why it waited for a re-run.
+- **The original synthetic agent row still does not replay.** **Open, and
+  blocked on a credential.** Its 18 cells were recorded to a scratch directory
+  before cassettes were committed, and the prompts have changed since -- twice
+  over, now that the metric has moved. The traces name the gap in their
+  `system_stats.client.cassette.path` field. Re-recording it is the one item
+  here that costs money rather than compute, and it is worth doing: the
+  synthetic corpus is *generated* rather than downloaded, so once that row
+  replays, `headroom eval --check-against` can run in CI and reproduce a full
+  published table on every push with no corpus fetch and no key. The
+  MUSDB18 tables can never do that, because the audio is not redistributable.
 
+### What v1.1 re-ran, and what it could not
+
+Every arithmetic system was re-run from scratch on the corrected metric, in
+all four conditions. The model-backed rows were not: re-recording them needs
+an `ANTHROPIC_API_KEY`, the prompts carry the measured numbers, and the
+committed cassettes are therefore stale by construction. Until they are
+re-recorded, the `agent` row and the brief-translation table describe the v1
+metric while everything around them describes v1.1, and both are marked as
+such where they appear.
