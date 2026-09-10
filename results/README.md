@@ -63,6 +63,10 @@ around them describe **v1.1**. Each is marked in place.
 - `report/` — the HTML listening page. Synthetic clips only;
   `headroom report --html` refuses to write audio for any corpus whose
   manifest is not marked redistributable.
+- `traces-ablation-unseeded-bound/` — the optimizer run cold, with no seed
+  chains, on the corrected metric at 20 s. It measures what the seeding is
+  worth: without it the 250-render search is not a ceiling at all. See
+  [docs/ANALYSIS.md](../docs/ANALYSIS.md#what-the-seeding-is-worth-measured).
 - `traces*/` — one JSON per cell: the full step-by-step run, the chain at
   every step, the distance, and the named abort. These are what
   `headroom eval --check-against` compares a fresh run against, and what makes

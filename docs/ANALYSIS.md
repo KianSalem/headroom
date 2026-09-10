@@ -182,6 +182,36 @@ averaged over kinds, which weights the hard kinds equally with the easy ones.
 Either way, that ratio, not the recovery number, is the argument for a routed,
 bounded, measured loop over brute search.
 
+### What the seeding is worth, measured
+
+`optimizer.py` claims the search is "seeded with the other systems' final
+chains, which is what makes it a bound rather than a peer". That was an
+assertion with no number behind it. v1.1 put one there by accident: an
+attempt at the 20 s bound was run with `--systems optimizer` alone, which
+leaves the seed list empty, and the result is worth keeping.
+
+Same 54 cells as the headline table, same corrected metric, same 250-render
+budget, 20 s clips:
+
+| system | recovery (median) | renders | against the heuristic |
+|---|---|---|---|
+| **`agent-scaffold`** | **+0.991** | **2** | 29 W / 14 L / 11 T, p=0.002 |
+| `heuristic` | +0.951 | 3 | -- |
+| `optimizer` *(unseeded)* | +0.821 | 250 | 10 W / **38 L** / 6 T, p<0.0001 |
+
+Cold, 250 renders of multi-start Powell is not a ceiling. It loses 38 of 54
+cells to a proportional controller spending three renders, and finishes 0.17
+below the routed loop spending two. It never oscillates, so it is still a
+well-behaved search; it simply cannot find the region from a cold start
+inside the budget. Traces in
+[`results/traces-ablation-unseeded-bound/`](../results/traces-ablation-unseeded-bound).
+
+Two things follow. The seeded number is a statement about *the seeds plus the
+search* rather than about the search, and should be read that way wherever it
+is quoted. And a ceiling has to be re-established for every condition it is
+claimed in -- the 6.8 s seeded result does not license a 20 s claim, which is
+why this document does not make one.
+
 The bound also reframes the dynamics results, which is exactly what it is for.
 It is *not* 1.000 everywhere: `over_compress` caps at +0.890 and `over_expand`
 at +0.854, so those degradations are not fully undoable with the ops available,
