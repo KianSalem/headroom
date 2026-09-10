@@ -328,9 +328,13 @@ def test_check_against_turns_reproduction_into_an_exit_code(
 def test_the_run_summary_states_replay_status_and_spend() -> None:
     from headroom.control.state import RunTrace
 
-    base = RunTrace.model_validate_json(
-        sorted(Path("results/traces-musdb18-20s").glob("*__agent.json"))[0].read_text()
-    )
+    # Any committed model-backed trace will do; this only needs a realistic
+    # RunTrace to copy. Found by search rather than by path, because which
+    # directory holds the model rows depends on which metric they were
+    # recorded against.
+    recorded = sorted(Path("results").rglob("*__agent.json"))
+    assert recorded, "no committed model-backed trace to build the fixture from"
+    base = RunTrace.model_validate_json(recorded[0].read_text())
     paid = base.model_copy(update={"replayed_from_cassette": False, "total_cost_usd": 0.25})
     free = base.model_copy(update={"replayed_from_cassette": True, "total_cost_usd": 0.75})
     text = runner.RunReport(traces=[paid, free]).summary()
