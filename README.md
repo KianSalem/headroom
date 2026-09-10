@@ -114,10 +114,11 @@ claims earlier versions of this page made, including "the model is significantly
 worse", which held at 6.8 s and not at 20 s. The model's real weakness is
 stability: change only the analysis window and its per-kind results move 18×
 further than the scaffold's. Those two findings are v1-metric measurements and
-stand until the model rows are re-recorded. The optimizer ceiling is being
-re-measured at 20 s, where the headline is, rather than at the 6.8 s it was
-run at in v1. All of it, with the bound, the retractions and the caveats, is
-in [**docs/ANALYSIS.md**](docs/ANALYSIS.md); the generated tables are in
+stand until the model rows are re-recorded. The optimizer ceiling is also
+v1-metric and was measured at 6.8 s rather than at the 20 s the headline uses,
+so it is reported as a 6.8 s result that has not been shown to transfer. All
+of it, with the bound, the retractions and the caveats, is in
+[**docs/ANALYSIS.md**](docs/ANALYSIS.md); the generated tables are in
 [`results/`](results/README.md).
 
 ## How it works

@@ -160,12 +160,13 @@ system's final chain, says what was reachable at all within the op vocabulary.
 It never loses a cell to the heuristic (31 wins, 0 losses, 23 ties) and never
 oscillates, which is what makes it usable as a ceiling rather than a competitor.
 
-**These figures are v1-metric and are being re-measured at 20 s**, where the
-headline is, rather than at the 6.8 s they were run at because the bound is
-the slowest thing in the project: 250 renders a cell across 54 cells. Until
-that lands, the ratios below describe the old measurement, and the
-`agent-scaffold` and `heuristic` rows are the v1 numbers rather than the
-corrected ones in the headline table. On the 6.8 s real-music condition:
+**These figures are v1-metric and have not been re-measured at 20 s.** The
+bound is the slowest thing in the project -- 250 renders a cell across 54
+cells -- which is why it was run at 6.8 s in the first place, and it has not
+been shown to transfer to the clip length the headline uses. So the ratios
+below describe the old measurement, and the `agent-scaffold` and `heuristic`
+rows here are v1 numbers, not the corrected ones in the headline table. On
+the 6.8 s real-music condition:
 
 | system | recovery (median) | renders | mean % of bound over the nine kinds |
 |---|---|---|---|
