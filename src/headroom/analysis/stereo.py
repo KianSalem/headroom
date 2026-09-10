@@ -19,7 +19,7 @@ import pyloudnorm as pyln
 
 from headroom.audio import SILENCE_FLOOR_DB, AudioBuffer, db
 
-from .spectral import N_BANDS, band_energy, welch_power
+from .spectral import N_BANDS, band_power, welch_power
 
 #: Clamp for width readings. Out-of-phase content can drive mid energy to
 #: nearly zero, which would send the ratio to +inf.
@@ -84,8 +84,12 @@ def analyze_stereo(buf: AudioBuffer) -> StereoFeatures:
 
     freqs, mid_p = welch_power(mid, buf.sample_rate)
     _, side_p = welch_power(side, buf.sample_rate)
-    mid_bands = band_energy(freqs, mid_p, buf.nyquist) * float(mid_p.sum())
-    side_bands = band_energy(freqs, side_p, buf.nyquist) * float(side_p.sum())
+    # Raw band power, not normalized fractions rescaled by each signal's
+    # total: the totals run over every Welch bin, including below 20 Hz and
+    # above 20 kHz, so the mid and side rescalings do not cancel and the
+    # ratio picks up an out-of-band factor that has nothing to do with band i.
+    mid_bands = band_power(freqs, mid_p, buf.nyquist)
+    side_bands = band_power(freqs, side_p, buf.nyquist)
 
     width: list[float] = []
     for i in range(N_BANDS):

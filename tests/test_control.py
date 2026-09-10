@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 from evals.degradations import make_degradation
@@ -18,7 +20,7 @@ from headroom.control.state import (
 )
 from headroom.dsp.backends.pedalboard import clear_cache, render_chain
 from headroom.dsp.chain import Chain
-from headroom.dsp.ops import op_gain
+from headroom.dsp.ops import OpKind, StereoWidthOp, op_gain
 from headroom.target.distance import distance
 from headroom.target.profile import TargetProfile
 
@@ -305,3 +307,63 @@ def test_an_infrastructure_failure_ends_the_evaluation_not_the_cell(
     clear_cache()
     with pytest.raises(NoRecordingError):
         run_loop("agent", _degraded(scene, "combo"), target, unreplayable, config=BUDGET)
+
+
+def _fresh_state(scene: tuple[AudioBuffer, TargetProfile]) -> LoopState:
+    original, target = scene
+    features = analyze(original)
+    result = distance(features, target)
+    return LoopState(
+        source=original,
+        target=target,
+        chain=Chain(),
+        features=features,
+        distance=result,
+        initial_distance=result.score,
+        step_index=0,
+        step_scale=1.0,
+        renders_used=0,
+        render_budget=14,
+    )
+
+
+def test_floor_actions_report_no_parameter_direction(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """v1 defect: the floors ended their action string with a random signed
+    number purely to satisfy the ``"<param> <signed delta>"`` format, so
+    roughly 1% of their steps read to the critic as a boost-cut-boost cycle
+    on one parameter and tripped oscillation handling.
+
+    A random op has no direction to report. The critic's parser must fail on
+    the trailing token rather than be handed a made-up sign.
+    """
+    state = _fresh_state(scene)
+    for make in (trivial.make_random_propose, trivial.make_hillclimb_propose):
+        for seed in range(8):
+            action = make(seed)(state).action
+            _, _, tail = action.rpartition(" ")
+            with pytest.raises(ValueError):
+                float(tail)
+
+
+def test_the_heuristic_takes_its_global_width_step_in_db(
+    scene: tuple[AudioBuffer, TargetProfile],
+) -> None:
+    """The scaffold/heuristic pair is a controlled ablation: one designed
+    difference (the scaffold may bundle several edits into one render) and no
+    others. Both clamp a global width correction to +/-0.5 and read it as
+    half-dB, so the saturated step is 10**(5 dB / 20) = 1.778x on both sides.
+
+    v1 read the clamped value as a raw linear factor here and capped at 1.5x
+    instead -- the same constants, different units, on the one role where the
+    two controllers were meant to be identical.
+    """
+    state = _fresh_state(scene)
+    saturating = replace(state.distance.breakdown["correlation_z"], delta=100.0)
+
+    chain, _ = heuristic._correct(state, saturating)
+
+    widths = [op for op in chain.of_kind(OpKind.STEREO_WIDTH) if isinstance(op, StereoWidthOp)]
+    globals_ = [op.width for op in widths if op.band is None]
+    assert globals_ == pytest.approx([10.0**0.25])

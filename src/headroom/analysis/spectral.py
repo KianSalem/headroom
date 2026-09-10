@@ -83,8 +83,14 @@ def band_edges_for(nyquist: float) -> tuple[float, ...]:
     return tuple(min(e, nyquist) for e in BAND_EDGES)
 
 
-def band_energy(freqs: Samples, power: Samples, nyquist: float) -> npt.NDArray[np.float64]:
-    """Normalized energy per band; sums to 1.0 across the nine bands."""
+def band_power(freqs: Samples, power: Samples, nyquist: float) -> npt.NDArray[np.float64]:
+    """Raw summed power per band, in the input's own units.
+
+    Kept separate from :func:`band_energy` because a *ratio between two
+    signals* in the same band -- stereo side over mid -- must be taken on raw
+    power. Normalizing each signal first divides by its own in-band total, and
+    the two totals do not cancel.
+    """
     edges = band_edges_for(nyquist)
     out = np.zeros(N_BANDS, dtype=np.float64)
     for i in range(N_BANDS):
@@ -93,6 +99,12 @@ def band_energy(freqs: Samples, power: Samples, nyquist: float) -> npt.NDArray[n
             continue
         mask = (freqs >= lo) & (freqs < hi)
         out[i] = float(power[mask].sum()) if mask.any() else 0.0
+    return out
+
+
+def band_energy(freqs: Samples, power: Samples, nyquist: float) -> npt.NDArray[np.float64]:
+    """Normalized energy per band; sums to 1.0 across the nine bands."""
+    out = band_power(freqs, power, nyquist)
     total = float(out.sum())
     if total <= 0.0:
         return np.full(N_BANDS, 1.0 / N_BANDS, dtype=np.float64)

@@ -93,7 +93,7 @@ def make_random_propose(seed: int) -> Proposer:
         op = _random_op(rng)
         return Proposal(
             chain=state.chain.add(op),
-            action=f"random.{op.kind} {float(rng.uniform(-1.0, 1.0)):+.3f}",
+            action=f"random.{op.kind}",
             note="uniform random in-bounds op",
         )
 
@@ -126,7 +126,7 @@ def make_hillclimb_propose(seed: int) -> Proposer:
 
         return Proposal(
             chain=candidate,
-            action=f"hillclimb.{op.kind} {float(rng.uniform(-1.0, 1.0)):+.3f}",
+            action=f"hillclimb.{op.kind}",
             note=f"perturbing best-so-far (score {best_score:.4f})",
         )
 

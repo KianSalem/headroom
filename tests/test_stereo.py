@@ -6,7 +6,7 @@ import pytest
 from headroom.analysis.stereo import MONO_COMPAT_FLOOR_DB, analyze_stereo, mono_compat_db
 from headroom.audio import AudioBuffer
 
-from .conftest import sine, stereo, white
+from .conftest import SR, sine, stereo, white
 
 
 def test_identical_channels_correlate_at_one(white_noise: AudioBuffer) -> None:
@@ -93,3 +93,25 @@ def test_all_ratio_features_are_in_db_not_raw_ratios() -> None:
     w = white()
     st = analyze_stereo(stereo(w, -w))
     assert st.mid_side_ratio_db < 0.0
+
+
+def test_per_band_width_ignores_energy_outside_the_scored_bands() -> None:
+    """v1 defect: per-band width came from each channel's *normalized* band
+    fractions rescaled by that channel's total Welch power. Those totals run
+    over every bin, including below 20 Hz, so sub-sonic content that belongs
+    to no scored band still rescaled one side of the side/mid ratio and moved
+    every band's reading at once.
+
+    22.5 kHz sits above BAND_EDGES[-1] = 20 kHz but below Nyquist, so it lands
+    in the Welch total and in no scored band. Identical in both channels, it
+    is pure mid content: it must not touch a single width reading.
+    """
+    left, right = white(seed=1), white(seed=2)
+    base = analyze_stereo(stereo(left, right)).width_per_band_db
+
+    t = np.arange(left.size, dtype=np.float64) / SR
+    out_of_band = 0.2 * np.sin(2.0 * np.pi * 22_500.0 * t)
+    shifted = analyze_stereo(stereo(left + out_of_band, right + out_of_band)).width_per_band_db
+
+    for i, (a, b) in enumerate(zip(base, shifted, strict=True)):
+        assert a == pytest.approx(b, abs=0.1), f"band {i} moved with out-of-band energy"

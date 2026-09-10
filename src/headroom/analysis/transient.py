@@ -89,12 +89,21 @@ def _attack_ms(env: Samples, times: Samples, onset: float) -> float | None:
 
     span = peak - baseline
     thr10, thr90 = baseline + 0.1 * span, baseline + 0.9 * span
-    seg = env[i_pre : i_post + 1]
-    above10 = np.flatnonzero(seg >= thr10)
-    if above10.size == 0:
+
+    # Measure the rise that actually reaches this onset's peak, by walking
+    # back from the peak to the last sample still below the 10% threshold.
+    # Searching *forward* from the start of the pre-onset window instead
+    # reports the first sample above threshold anywhere in that window, which
+    # for a tail still decaying from the previous hit is the window's own
+    # first sample -- and the measured attack then includes the whole
+    # pre-onset window rather than the rise. The baseline is the minimum over
+    # the pre-onset window, so a sample below thr10 always exists to find.
+    i_peak = i_on + int(np.argmax(env[i_on : i_post + 1]))
+    below10 = np.flatnonzero(env[i_pre : i_peak + 1] < thr10)
+    if below10.size == 0:
         return None
-    i10 = int(above10[0])
-    above90 = np.flatnonzero(seg[i10:] >= thr90)
+    i10 = i_pre + int(below10[-1]) + 1
+    above90 = np.flatnonzero(env[i10 : i_peak + 1] >= thr90)
     if above90.size == 0:
         return None
     i90 = i10 + int(above90[0])

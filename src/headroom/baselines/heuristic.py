@@ -221,15 +221,23 @@ def _correct(state: LoopState, worst: FeatureDelta) -> tuple[Chain, str]:
         factor = float(10.0 ** (correction * WIDTH_K / 20.0))
         return _upsert_width(chain, band, factor)
 
+    # Both global width corrections below are expressed in dB and converted,
+    # matching the per-band branch just above and the scaffold's stereo
+    # planner. Treating the clamped value as a linear factor instead -- which
+    # is what this did in v1 -- shares the constants but not the units, and
+    # silently gives the two controllers different maximum steps (1.5x here
+    # against 1.78x there) on the one role where they were meant to be
+    # identical.
     if name == "correlation_z":
         # More correlation means a narrower image, so a positive error wants
         # width increased.
-        factor = 1.0 + _clamp(worst.delta * 0.25 * scale, -0.5, 0.5)
-        return _upsert_width(chain, None, factor)
+        correction_db = _clamp(worst.delta * 0.25 * scale, -0.5, 0.5) * 10.0
+        return _upsert_width(chain, None, float(10.0 ** (correction_db / 20.0)))
 
     if name == "mono_compat_db":
         # Poor mono compatibility is excess out-of-phase side energy.
-        return _upsert_width(chain, None, 1.0 - _clamp(abs(worst.delta) * 0.1 * scale, 0.0, 0.5))
+        correction_db = -_clamp(abs(worst.delta) * 0.1 * scale, 0.0, 0.5) * 10.0
+        return _upsert_width(chain, None, float(10.0 ** (correction_db / 20.0)))
 
     if name in ("crest_factor_db", "crest_short_p50"):
         return _upsert_dynamics(chain, state.features.lufs_integrated, worst.delta * scale)

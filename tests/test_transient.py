@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
-from headroom.analysis.transient import analyze_transient
+from headroom.analysis.transient import (
+    ATTACK_PRE_S,
+    ENV_HOP_S,
+    _attack_ms,
+    analyze_transient,
+)
 from headroom.audio import AudioBuffer
 
 from .conftest import ramp_clicks, sine, stereo, white
@@ -46,3 +52,30 @@ def test_silence_is_flagged_degenerate(silence: AudioBuffer) -> None:
     assert t.attack_degenerate
     assert t.n_onsets == 0
     assert t.percussive_ratio == 0.0
+
+
+def test_attack_is_timed_from_the_rise_not_the_pre_onset_tail() -> None:
+    """v1 defect: the 10% crossing was searched forward from the start of the
+    pre-onset window, so a tail still decaying from the previous hit was
+    already above the threshold and the rise was timed from the window's edge
+    rather than from the foot of the rise.
+
+    This envelope decays across the whole pre-onset window and then rises to
+    its peak in 8 frames. Timing from the window edge reports 12 ms; timing
+    from the foot of the rise reports the 1.6 ms that is actually there.
+    """
+    hop = ENV_HOP_S
+    pre = round(ATTACK_PRE_S / hop)
+    env = np.concatenate(
+        [
+            np.linspace(0.60, 0.50, pre, endpoint=False),  # still decaying
+            np.linspace(0.50, 1.00, 9),  # the rise: 8 frames
+            np.full(pre, 1.00),
+        ]
+    )
+    times = np.arange(env.size, dtype=np.float64) * hop
+
+    got = _attack_ms(env, times, pre * hop)
+
+    assert got is not None
+    assert got == pytest.approx(0.8 * 8 * hop * 1000.0, abs=0.3)
