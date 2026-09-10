@@ -63,14 +63,20 @@ filter settling. No cell was skipped for a weak degradation. Full tables in
 
 | system | recovery (median) | IQR | converged | oscillated | renders | cost |
 |---|---|---|---|---|---|---|
-| **`agent-scaffold`** | **+0.991** | +0.912 to +1.000 | **67%** | **6%** | **2** | **$0** |
-| `heuristic` | +0.959 | +0.858 to +1.000 | 67% | 11% | 3 | $0 |
-| `agent` *(Haiku 4.5)* | +0.934 | +0.821 to +1.000 | 54% | 31% | 3 | $1.20 |
-| `hillclimb` | +0.001 | +0.000 to +0.061 | 0% | 76% | 6 | $0 |
-| `random` | +0.000 | +0.000 to +0.001 | 0% | 76% | 6 | $0 |
+| **`agent-scaffold`** | **+0.991** | +0.912 to +1.000 | **67%** | **7%** | **2** | **$0** |
+| `heuristic` | +0.951 | +0.858 to +0.994 | 67% | 11% | 3 | $0 |
+| `hillclimb` | +0.000 | +0.000 to +0.105 | 0% | 94% | 6 | $0 |
+| `random` | +0.000 | +0.000 to +0.047 | 0% | 81% | 7 | $0 |
 | `null` | +0.000 | +0.000 to +0.000 | 0% | 0% | 0 | $0 |
 
-The optimizer bound is not in this table because it was measured at 6.8 s, not
+`agent` is absent because it could not be re-run on the corrected metric; its
+v1 row read +0.934, 54% converged, 31% oscillated, $1.20. The floors'
+oscillation rates moved (76% to 94% on `hillclimb`) for a reason worth naming:
+removing the fabricated sign from their action string also removed a draw from
+their RNG sequence, so they now explore differently. Their recovery is
+unchanged at +0.000, which is the only thing a floor is asked to establish.
+
+The optimizer bound is not in this table because it is being re-measured at
 20 s; see [What the bound says](#what-the-bound-says).
 
 ## Paired tests, both clip lengths
@@ -81,11 +87,16 @@ interesting part:
 
 | system | clips | wins | losses | ties | p |
 |---|---|---|---|---|---|
-| `agent-scaffold` | 20 s | 27 | 15 | 12 | **0.010** |
-| `agent-scaffold` | 6.8 s | 26 | 13 | 15 | **0.028** |
-| `agent` | 6.8 s | 18 | 26 | 10 | **0.032** (worse) |
-| `agent` | 20 s | 19 | 22 | 13 | 0.168 |
+| `agent-scaffold` | 20 s | 29 | 14 | 11 | **0.002** |
+| `agent-scaffold` | 6.8 s | 29 | 12 | 13 | **0.010** |
+| `agent` *(v1 metric)* | 6.8 s | 18 | 26 | 10 | **0.032** (worse) |
+| `agent` *(v1 metric)* | 20 s | 19 | 22 | 13 | 0.168 |
 | floors | either | 0 | 54 | 0 | ≤0.0001 |
+
+The two `agent` rows are v1-metric and the two above them are not, so they are
+no longer strictly commensurable. They are kept because the disagreement
+between clip lengths is a statement about the model's stability rather than
+about its level, and that reading does not turn on the two corrected features.
 
 ## The four-condition control, and three claims it cut down
 
@@ -96,17 +107,26 @@ same systems. All of it is arithmetic and cost nothing.
 
 | corpus | clips | `agent-scaffold` | `heuristic` | gap | wins | losses | ties | p |
 |---|---|---|---|---|---|---|---|---|
-| synthetic | 6.8 s | +1.000 | +0.994 | 0.006 | 19 | 14 | 21 | 0.230 |
-| synthetic | 20 s | +0.999 | +0.991 | 0.008 | 21 | 9 | 24 | **0.047** |
-| real music | 6.8 s | +0.996 | +0.962 | **0.034** | 26 | 13 | 15 | **0.028** |
-| **real music** | **20 s** | **+0.991** | **+0.959** | **0.032** | 27 | 15 | 12 | **0.010** |
+| synthetic | 6.8 s | +1.000 | +0.993 | 0.007 | 23 | 14 | 17 | 0.109 |
+| synthetic | 20 s | +1.000 | +0.994 | 0.006 | 24 | 10 | 20 | **0.045** |
+| real music | 6.8 s | +0.997 | +0.951 | **0.046** | 29 | 12 | 13 | **0.010** |
+| **real music** | **20 s** | **+0.991** | **+0.951** | **0.040** | 29 | 14 | 11 | **0.002** |
 
 **Retracted: "the advantage only appears on real music."** It does not;
-synthetic at 20 s is significant too (p=0.047). What survives is about **effect
-size rather than significance**: the median gap is roughly five times larger on
-real music, 0.033 against 0.007, consistently at both clip lengths. Real music
-does not create the advantage; it makes it large enough to be worth caring
-about.
+synthetic at 20 s is significant too (p=0.045). What survives is about **effect
+size rather than significance**: the median gap is roughly seven times larger
+on real music, 0.043 against 0.006, consistently at both clip lengths. Real
+music does not create the advantage; it makes it large enough to be worth
+caring about.
+
+The corrected metric strengthened this rather than weakening it. The headline
+p moved from 0.010 to 0.002 and the real-music gap from 0.032 to 0.040, and
+the reason is legible: the attack-time defect was reading a decaying tail as
+part of the rise, which put noise into one of the five dimensions the dynamics
+role owns. Removing it did not favour either controller by construction --
+both read the same metric -- but a quieter measurement resolves a real
+difference that was previously partly buried. Two of the three retractions
+above survive the correction unchanged; the third, below, is sharpened.
 
 **Retracted: "the model is significantly worse than the heuristic."** True at
 6.8 s (p=0.032) and on the original synthetic run (p=0.025), *not* true at 20 s
@@ -116,7 +136,7 @@ is what caught it.
 
 **Retracted: the original null result as a material effect.** The first
 synthetic run reported p=0.120 and was read as "not significant". The identical
-condition at 54 cells instead of 18 gives p=0.047. An 0.008 gap was never
+condition at 54 cells instead of 18 gives p=0.045. An 0.006 gap was never
 resolvable at n=18, which is a less flattering explanation than the material
 one, so it goes first.
 
@@ -139,14 +159,20 @@ A multi-start Powell optimizer, 250 renders a cell, seeded with every other
 system's final chain, says what was reachable at all within the op vocabulary.
 It never loses a cell to the heuristic (31 wins, 0 losses, 23 ties) and never
 oscillates, which is what makes it usable as a ceiling rather than a competitor.
-On the 6.8 s real-music condition:
+
+**These figures are v1-metric and are being re-measured at 20 s**, where the
+headline is, rather than at the 6.8 s they were run at because the bound is
+the slowest thing in the project: 250 renders a cell across 54 cells. Until
+that lands, the ratios below describe the old measurement, and the
+`agent-scaffold` and `heuristic` rows are the v1 numbers rather than the
+corrected ones in the headline table. On the 6.8 s real-music condition:
 
 | system | recovery (median) | renders | mean % of bound over the nine kinds |
 |---|---|---|---|
-| `optimizer` *(measured bound)* | +1.000 | 250 | 100% |
-| **`agent-scaffold`** | **+0.996** | **2** | **97.9%** |
-| `heuristic` | +0.962 | 3 | 97.3% |
-| `agent` | +0.920 | 4 | 80.6% |
+| `optimizer` *(measured bound, v1)* | +1.000 | 250 | 100% |
+| **`agent-scaffold`** *(v1)* | **+0.996** | **2** | **97.9%** |
+| `heuristic` *(v1)* | +0.962 | 3 | 97.3% |
+| `agent` *(v1)* | +0.920 | 4 | 80.6% |
 
 Two different statistics are in that table, so to be explicit: the scaffold's
 median recovery of 0.996 against the optimizer's 1.000 is where "99.6% of the
@@ -271,7 +297,7 @@ not run here.
 mean six cells per kind, so every per-kind number is indicative and the overall
 paired test is the one to read. The clip-length instability above is exactly
 what six cells per kind looks like when a system is not deterministic. The
-architecture result sits at p=0.010 and p=0.047 depending on corpus, which is
+architecture result sits at p=0.002 and p=0.045 depending on corpus, which is
 not a large margin either.
 
 **A 6.8 s clip cannot measure loudness range, and one earlier conclusion rested

@@ -21,7 +21,7 @@
   "final_chain": {
     "ops": [
       {
-        "id": "45cce69e",
+        "id": "95b22a71",
         "kind": "eq",
         "bands": [
           {
@@ -46,7 +46,7 @@
       "chain": {
         "ops": [
           {
-            "id": "45cce69e",
+            "id": "95b22a71",
             "kind": "eq",
             "bands": [
               {
@@ -116,7 +116,7 @@
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 1,
-      "elapsed_s": 0.5443,
+      "elapsed_s": 0.5349,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -131,7 +131,7 @@
       "chain": {
         "ops": [
           {
-            "id": "45cce69e",
+            "id": "95b22a71",
             "kind": "eq",
             "bands": [
               {
@@ -145,16 +145,24 @@
         ]
       },
       "chain_fingerprint": "ae27feeb60a3a74a67343fa77c21274a",
-      "distance_score": 0.053853863385700196,
-      "n_out_of_tolerance": 2,
+      "distance_score": 0.13140872638964948,
+      "n_out_of_tolerance": 3,
       "by_family": {
         "loudness": 0.0,
         "dynamics": 0.0,
         "spectral": 0.0029,
         "stereo": 0.0,
-        "transient": 0.0
+        "transient": 0.014368
       },
       "worst": [
+        {
+          "name": "attack_log2_ms",
+          "family": "transient",
+          "unit": "log2(ms)",
+          "delta": -0.6153,
+          "scaled": -1.7581,
+          "excess": -0.7581
+        },
         {
           "name": "band_clr_5",
           "family": "spectral",
@@ -186,14 +194,6 @@
           "delta": -0.0906,
           "scaled": -0.0906,
           "excess": -0.0
-        },
-        {
-          "name": "lra",
-          "family": "loudness",
-          "unit": "LU",
-          "delta": -0.0006,
-          "scaled": -0.0006,
-          "excess": -0.0
         }
       ],
       "action": "eq.band5 -1.300",
@@ -201,7 +201,7 @@
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 2,
-      "elapsed_s": 1.072,
+      "elapsed_s": 1.0608,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -216,7 +216,7 @@
       "chain": {
         "ops": [
           {
-            "id": "45cce69e",
+            "id": "95b22a71",
             "kind": "eq",
             "bands": [
               {
@@ -292,7 +292,7 @@
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 3,
-      "elapsed_s": 1.5941,
+      "elapsed_s": 1.5908,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -300,14 +300,14 @@
       "role": "eq",
       "n_edits": 2,
       "n_rejected": 0,
-      "note": "role=eq | targeting band_clr_5 +1.30 tol | 2 edit(s): eq.band5 -0.680; eq.band4 +0.575 | band_clr_5 is +1.30 tol; band_clr_4 is -1.10 tol"
+      "note": "role=eq | targeting band_clr_5 +1.30 tol | 2 edit(s): eq.band5 -0.680; eq.band4 +0.575 | band_clr_5 is +1.30 tol; band_clr_4 is -1.10 tol | skipped: dynamics passed: nothing I own maps onto an op that moves it"
     },
     {
       "index": 3,
       "chain": {
         "ops": [
           {
-            "id": "45cce69e",
+            "id": "95b22a71",
             "kind": "eq",
             "bands": [
               {
@@ -383,7 +383,7 @@
       "oscillating": false,
       "verdict": "converged",
       "renders_used": 3,
-      "elapsed_s": 1.5941,
+      "elapsed_s": 1.5909,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -395,13 +395,13 @@
     }
   ],
   "n_renders": 3,
-  "wall_time_s": 1.5976,
+  "wall_time_s": 1.5944,
   "total_cost_usd": 0.0,
   "total_input_tokens": 0,
   "total_output_tokens": 0,
   "total_cache_read_tokens": 0,
-  "git_sha": "125cf29",
-  "config_hash": "9a9ee3667fe018b0",
+  "git_sha": "515c699",
+  "config_hash": "27522dce54ebefe9",
   "package_versions": {
     "numpy": "2.5.3",
     "scipy": "1.18.1",
@@ -426,9 +426,11 @@
     },
     "ownership_violations": 0,
     "rejected_calls": 0,
-    "consults": 3,
+    "consults": 4,
     "repositions": 0,
     "empty_rounds": 0,
-    "passes": {}
+    "passes": {
+      "dynamics": 1
+    }
   }
 }

@@ -285,36 +285,36 @@ Recorded here because the point of the evaluation was to be able to be wrong.
 
 **The architecture beats the heuristic, significantly.** `agent-scaffold`
 against `heuristic`: 26 wins, 13 losses, 15 ties, signed-rank p=0.0280,
-median recovery +0.996 against +0.962, a median 2 renders against 3.
+median recovery +0.991 against +0.951, a median 2 renders against 3.
 
 **Four conditions, because one comparison proves nothing.** Two corpora × two
 clip lengths, 54 cells each, same six-track count, same seed, same systems:
 
 | corpus | clips | scaffold | heuristic | gap | W/L/T | p |
 |---|---|---|---|---|---|---|
-| synthetic | 6.8 s | +1.000 | +0.994 | 0.006 | 19/14/21 | 0.2302 |
-| synthetic | 20 s | +0.999 | +0.991 | 0.008 | 21/9/24 | 0.0470 |
-| real music | 6.8 s | +0.996 | +0.962 | 0.034 | 26/13/15 | 0.0280 |
-| real music | 20 s | +0.991 | +0.959 | 0.032 | 27/15/12 | 0.0101 |
+| synthetic | 6.8 s | +1.000 | +0.993 | 0.007 | 23/14/17 | 0.1091 |
+| synthetic | 20 s | +1.000 | +0.994 | 0.006 | 24/10/20 | 0.0448 |
+| real music | 6.8 s | +0.997 | +0.951 | 0.046 | 29/12/13 | 0.0102 |
+| real music | 20 s | +0.991 | +0.951 | 0.040 | 29/14/11 | 0.0019 |
 
 **A claim these controls cut down.** With only the 6.8 s rows it looked like
 the advantage appeared *only* on real music, and this document said so.
-Synthetic at 20 s is also significant, p=0.0470. The surviving claim is about
-**effect size rather than significance**: the median gap is about five times
-larger on real music, 0.033 against 0.007, at both clip lengths. Real music
+Synthetic at 20 s is also significant, p=0.0448. The surviving claim is about
+**effect size rather than significance**: the median gap is about seven times
+larger on real music, 0.043 against 0.006, at both clip lengths. Real music
 does not create the advantage — it makes it big enough to matter.
 
 **The original null was mostly a sample-size problem, not a material one.**
 The first synthetic run reported p=0.120 at 18 cells and was read as "the
 architecture is not significantly better". The identical condition at 54 cells
-gives p=0.0470. An 0.008 gap was never going to be resolvable at n=18, and
+gives p=0.0448. An 0.006 gap was never going to be resolvable at n=18, and
 that is a less flattering explanation than the material one, which is why it
 is stated first.
 
 **The synthetic corpus is a poor instrument either way**, and the ties say so:
-21 and 24 of 54 cells are exact ties, because both systems finish at recovery
+17 and 20 of 54 cells are exact ties, because both systems finish at recovery
 1.000 on material easy enough to saturate them. Real music leaves headroom —
-heuristic +0.959, convergence 67% against 76% — and 12 ties instead of 24.
+heuristic +0.951, convergence 67% against 76% — and 11 ties instead of 20.
 
 **A prediction this document made, and got half wrong.** It said real music
 would *widen* the coupling the architecture exploits. The per-kind margins did

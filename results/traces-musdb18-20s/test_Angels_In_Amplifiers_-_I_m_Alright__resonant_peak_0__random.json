@@ -21,7 +21,7 @@
   "final_chain": {
     "ops": [
       {
-        "id": "d69e7339",
+        "id": "ef70c949",
         "kind": "limiter",
         "ceiling_dbtp": -2.244597201461163,
         "release_ms": 50.0
@@ -34,7 +34,7 @@
       "chain": {
         "ops": [
           {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
             "release_ms": 50.0
@@ -93,12 +93,12 @@
           "excess": -0.0
         }
       ],
-      "action": "random.limiter -0.918",
+      "action": "random.limiter",
       "step_scale": 1.0,
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 1,
-      "elapsed_s": 1.5466,
+      "elapsed_s": 1.6461,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -113,22 +113,22 @@
       "chain": {
         "ops": [
           {
-            "id": "28950194",
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "fe988e34eabf5f2c462ee4591faa1718",
+      "chain_fingerprint": "6c2c130b6140f537095b7c5c26f08d4c",
       "distance_score": 0.6833583695320301,
       "n_out_of_tolerance": 3,
       "by_family": {
@@ -180,12 +180,12 @@
           "excess": -0.0
         }
       ],
-      "action": "random.expander +0.826",
+      "action": "random.expander",
       "step_scale": 1.0,
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 2,
-      "elapsed_s": 1.7182,
+      "elapsed_s": 1.8262,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -200,87 +200,91 @@
       "chain": {
         "ops": [
           {
-            "id": "28950194",
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
+          },
+          {
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "92fc7b7860c19d5af195bacaef0d2e4a",
-      "distance_score": 0.719558493116993,
-      "n_out_of_tolerance": 5,
+      "chain_fingerprint": "5c6e69b619681b0baa767374919c2b0c",
+      "distance_score": 1.0125922632315416,
+      "n_out_of_tolerance": 9,
       "by_family": {
-        "loudness": 0.0,
-        "dynamics": 0.0,
-        "spectral": 0.514212,
+        "loudness": 0.24427,
+        "dynamics": 0.01224,
+        "spectral": 0.768833,
         "stereo": 0.0,
-        "transient": 0.003553
+        "transient": 0.0
       },
       "worst": [
+        {
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 3.1264,
+          "scaled": 4.1686,
+          "excess": 3.1686
+        },
         {
           "name": "band_clr_5",
           "family": "spectral",
           "unit": "dB",
-          "delta": 3.7545,
-          "scaled": 5.006,
-          "excess": 4.006
+          "delta": 3.1214,
+          "scaled": 4.1618,
+          "excess": 3.1618
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": 1.356,
+          "scaled": 2.7121,
+          "excess": 1.7121
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.2869,
-          "scaled": 1.9123,
-          "excess": 0.9123
+          "delta": 0.4331,
+          "scaled": 2.8876,
+          "excess": 1.8876
         },
         {
-          "name": "band_clr_8",
+          "name": "band_clr_0",
           "family": "spectral",
           "unit": "dB",
-          "delta": -1.1102,
-          "scaled": -1.4803,
-          "excess": -0.4803
-        },
-        {
-          "name": "percussive_logit",
-          "family": "transient",
-          "unit": "logit",
-          "delta": 0.2754,
-          "scaled": 1.377,
-          "excess": 0.377
-        },
-        {
-          "name": "band_clr_2",
-          "family": "spectral",
-          "unit": "dB",
-          "delta": -0.8791,
-          "scaled": -1.1721,
-          "excess": -0.1721
+          "delta": -1.3287,
+          "scaled": -1.7716,
+          "excess": -0.7716
         }
       ],
-      "action": "random.expander +0.870",
+      "action": "random.eq",
       "step_scale": 1.0,
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 3,
-      "elapsed_s": 3.2523,
+      "elapsed_s": 3.5044,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -295,95 +299,97 @@
       "chain": {
         "ops": [
           {
-            "id": "28950194",
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
+          },
+          {
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "2495ec34",
-            "kind": "expander",
-            "threshold_db": -8.787807592840164,
-            "ratio": 1.0082155005104443,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
+            "release_ms": 50.0
+          },
+          {
+            "id": "98aa6c1b",
+            "kind": "limiter",
+            "ceiling_dbtp": -1.477850023896816,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "0cda68434c10558809cb2509f2ae5d8b",
-      "distance_score": 0.7203242553897827,
-      "n_out_of_tolerance": 5,
+      "chain_fingerprint": "32656dd0d99b4a179bc57bfc7c8fb03d",
+      "distance_score": 1.0125922632315416,
+      "n_out_of_tolerance": 9,
       "by_family": {
-        "loudness": 0.0,
-        "dynamics": 0.0,
-        "spectral": 0.514931,
+        "loudness": 0.24427,
+        "dynamics": 0.01224,
+        "spectral": 0.768833,
         "stereo": 0.0,
-        "transient": 0.003936
+        "transient": 0.0
       },
       "worst": [
+        {
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 3.1264,
+          "scaled": 4.1686,
+          "excess": 3.1686
+        },
         {
           "name": "band_clr_5",
           "family": "spectral",
           "unit": "dB",
-          "delta": 3.7563,
-          "scaled": 5.0083,
-          "excess": 4.0083
+          "delta": 3.1214,
+          "scaled": 4.1618,
+          "excess": 3.1618
+        },
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": 1.356,
+          "scaled": 2.7121,
+          "excess": 1.7121
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.2866,
-          "scaled": 1.911,
-          "excess": 0.911
+          "delta": 0.4331,
+          "scaled": 2.8876,
+          "excess": 1.8876
         },
         {
-          "name": "band_clr_8",
+          "name": "band_clr_0",
           "family": "spectral",
           "unit": "dB",
-          "delta": -1.1149,
-          "scaled": -1.4866,
-          "excess": -0.4866
-        },
-        {
-          "name": "percussive_logit",
-          "family": "transient",
-          "unit": "logit",
-          "delta": 0.2794,
-          "scaled": 1.3968,
-          "excess": 0.3968
-        },
-        {
-          "name": "band_clr_2",
-          "family": "spectral",
-          "unit": "dB",
-          "delta": -0.8817,
-          "scaled": -1.1756,
-          "excess": -0.1756
+          "delta": -1.3287,
+          "scaled": -1.7716,
+          "excess": -0.7716
         }
       ],
-      "action": "random.expander +0.715",
+      "action": "random.limiter",
       "step_scale": 1.0,
       "oscillating": false,
       "verdict": "continue",
       "renders_used": 4,
-      "elapsed_s": 4.8031,
+      "elapsed_s": 3.8455,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -398,103 +404,103 @@
       "chain": {
         "ops": [
           {
-            "id": "28950194",
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
+          },
+          {
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
+            "id": "a2da84cf",
+            "kind": "stereo_width",
+            "width": 1.5053656865944516,
+            "band": 4
           },
           {
-            "id": "2495ec34",
-            "kind": "expander",
-            "threshold_db": -8.787807592840164,
-            "ratio": 1.0082155005104443,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "ea88b0b0",
-            "kind": "expander",
-            "threshold_db": -11.028958392821455,
-            "ratio": 1.526966861807677,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
+            "release_ms": 50.0
+          },
+          {
+            "id": "98aa6c1b",
+            "kind": "limiter",
+            "ceiling_dbtp": -1.477850023896816,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "ec5c6b422943b9e5351c0d801a84106b",
-      "distance_score": 0.770817521606635,
-      "n_out_of_tolerance": 7,
+      "chain_fingerprint": "d62f838a27a4e49815d67528ff6d6481",
+      "distance_score": 1.0749566604620926,
+      "n_out_of_tolerance": 12,
       "by_family": {
-        "loudness": 0.012691,
-        "dynamics": 0.001347,
-        "spectral": 0.548483,
-        "stereo": 0.0,
-        "transient": 0.031639
+        "loudness": 0.320868,
+        "dynamics": 0.024635,
+        "spectral": 0.70778,
+        "stereo": 0.102249,
+        "transient": 0.0
       },
       "worst": [
+        {
+          "name": "lufs_integrated",
+          "family": "loudness",
+          "unit": "LUFS",
+          "delta": 1.4811,
+          "scaled": 2.9622,
+          "excess": 1.9622
+        },
         {
           "name": "band_clr_5",
           "family": "spectral",
           "unit": "dB",
-          "delta": 3.8034,
-          "scaled": 5.0712,
-          "excess": 4.0712
+          "delta": 2.9978,
+          "scaled": 3.9971,
+          "excess": 2.9971
+        },
+        {
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 2.9845,
+          "scaled": 3.9794,
+          "excess": 2.9794
+        },
+        {
+          "name": "width_4",
+          "family": "stereo",
+          "unit": "dB",
+          "delta": 3.3712,
+          "scaled": 3.3712,
+          "excess": 2.3712
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.3081,
-          "scaled": 2.0541,
-          "excess": 1.0541
-        },
-        {
-          "name": "percussive_logit",
-          "family": "transient",
-          "unit": "logit",
-          "delta": 0.425,
-          "scaled": 2.125,
-          "excess": 1.125
-        },
-        {
-          "name": "band_clr_8",
-          "family": "spectral",
-          "unit": "dB",
-          "delta": -1.2879,
-          "scaled": -1.7171,
-          "excess": -0.7171
-        },
-        {
-          "name": "lra",
-          "family": "loudness",
-          "unit": "LU",
-          "delta": 1.3902,
-          "scaled": 1.3902,
-          "excess": 0.3902
+          "delta": 0.3916,
+          "scaled": 2.6103,
+          "excess": 1.6103
         }
       ],
-      "action": "random.expander +0.726",
+      "action": "random.stereo_width",
       "step_scale": 0.5,
       "oscillating": true,
       "verdict": "continue",
       "renders_used": 5,
-      "elapsed_s": 6.3737,
+      "elapsed_s": 5.6299,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -509,108 +515,109 @@
       "chain": {
         "ops": [
           {
-            "id": "bd096ba3",
-            "kind": "gain",
-            "gain_db": 0.9950692859782011
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
           },
           {
-            "id": "28950194",
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
+            "id": "a2da84cf",
+            "kind": "stereo_width",
+            "width": 1.5053656865944516,
+            "band": 4
           },
           {
-            "id": "2495ec34",
-            "kind": "expander",
-            "threshold_db": -8.787807592840164,
-            "ratio": 1.0082155005104443,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "ea88b0b0",
-            "kind": "expander",
-            "threshold_db": -11.028958392821455,
-            "ratio": 1.526966861807677,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "d69e7339",
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
+            "release_ms": 50.0
+          },
+          {
+            "id": "98aa6c1b",
+            "kind": "limiter",
+            "ceiling_dbtp": -1.477850023896816,
+            "release_ms": 50.0
+          },
+          {
+            "id": "71f1953a",
+            "kind": "limiter",
+            "ceiling_dbtp": -2.9923321995235854,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "f7884643271e7e0154bf53f6841fe954",
-      "distance_score": 0.8466498990394996,
-      "n_out_of_tolerance": 8,
+      "chain_fingerprint": "a575e14a7c016a7317e52166cbe0787a",
+      "distance_score": 1.162208819047489,
+      "n_out_of_tolerance": 13,
       "by_family": {
-        "loudness": 0.176679,
-        "dynamics": 0.015334,
-        "spectral": 0.524686,
-        "stereo": 0.0,
-        "transient": 0.000117
+        "loudness": 0.30366,
+        "dynamics": 0.144585,
+        "spectral": 0.800483,
+        "stereo": 0.102001,
+        "transient": 0.0
       },
       "worst": [
-        {
-          "name": "band_clr_5",
-          "family": "spectral",
-          "unit": "dB",
-          "delta": 3.7728,
-          "scaled": 5.0304,
-          "excess": 4.0304
-        },
         {
           "name": "lufs_integrated",
           "family": "loudness",
           "unit": "LUFS",
-          "delta": 1.228,
-          "scaled": 2.4561,
-          "excess": 1.4561
+          "delta": 1.4441,
+          "scaled": 2.8882,
+          "excess": 1.8882
+        },
+        {
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 2.9991,
+          "scaled": 3.9988,
+          "excess": 2.9988
+        },
+        {
+          "name": "band_clr_5",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 2.9891,
+          "scaled": 3.9855,
+          "excess": 2.9855
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.2891,
-          "scaled": 1.9275,
-          "excess": 0.9275
+          "delta": 0.5059,
+          "scaled": 3.3724,
+          "excess": 2.3724
         },
         {
           "name": "crest_factor_db",
           "family": "dynamics",
           "unit": "dB",
-          "delta": -1.3916,
-          "scaled": -1.3916,
-          "excess": -0.3916
-        },
-        {
-          "name": "band_clr_8",
-          "family": "spectral",
-          "unit": "dB",
-          "delta": -1.1959,
-          "scaled": -1.5945,
-          "excess": -0.5945
+          "delta": -2.2024,
+          "scaled": -2.2024,
+          "excess": -1.2024
         }
       ],
-      "action": "random.gain -0.401",
+      "action": "random.limiter",
       "step_scale": 0.25,
       "oscillating": true,
       "verdict": "continue",
       "renders_used": 6,
-      "elapsed_s": 7.9408,
+      "elapsed_s": 7.5488,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -625,117 +632,118 @@
       "chain": {
         "ops": [
           {
-            "id": "bd096ba3",
-            "kind": "gain",
-            "gain_db": 0.9950692859782011
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
           },
           {
-            "id": "28950194",
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "2495ec34",
-            "kind": "expander",
-            "threshold_db": -8.787807592840164,
-            "ratio": 1.0082155005104443,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "ea88b0b0",
-            "kind": "expander",
-            "threshold_db": -11.028958392821455,
-            "ratio": 1.526966861807677,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "380a1365",
+            "id": "86de7748",
             "kind": "compressor",
-            "threshold_db": -39.03713118105426,
-            "ratio": 1.8699829354969477,
-            "attack_ms": 33.860596319987884,
-            "release_ms": 265.932014398215,
+            "threshold_db": -38.85809043961421,
+            "ratio": 6.107588125009609,
+            "attack_ms": 9.607125409525391,
+            "release_ms": 348.0079904929569,
             "makeup_db": 0.0
           },
           {
-            "id": "d69e7339",
+            "id": "a2da84cf",
+            "kind": "stereo_width",
+            "width": 1.5053656865944516,
+            "band": 4
+          },
+          {
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
+            "release_ms": 50.0
+          },
+          {
+            "id": "98aa6c1b",
+            "kind": "limiter",
+            "ceiling_dbtp": -1.477850023896816,
+            "release_ms": 50.0
+          },
+          {
+            "id": "71f1953a",
+            "kind": "limiter",
+            "ceiling_dbtp": -2.9923321995235854,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "1d569307f116fb583369b8c2f736c8b5",
-      "distance_score": 6.297449642927419,
-      "n_out_of_tolerance": 6,
+      "chain_fingerprint": "02074c629a6b9809345ac10dc39bcc33",
+      "distance_score": 12.076415828763343,
+      "n_out_of_tolerance": 14,
       "by_family": {
-        "loudness": 39.084903,
-        "dynamics": 0.0,
-        "spectral": 0.568692,
-        "stereo": 0.0,
-        "transient": 0.004277
+        "loudness": 137.23945,
+        "dynamics": 6.66268,
+        "spectral": 1.826599,
+        "stereo": 0.11109,
+        "transient": 0.0
       },
       "worst": [
         {
           "name": "lufs_integrated",
           "family": "loudness",
           "unit": "LUFS",
-          "delta": -10.1675,
-          "scaled": -20.3349,
-          "excess": -19.3349
+          "delta": -20.1271,
+          "scaled": -40.2542,
+          "excess": -39.2542
         },
         {
           "name": "true_peak_dbtp",
           "family": "loudness",
           "unit": "dBTP",
-          "delta": -10.756,
-          "scaled": -10.756,
-          "excess": -9.756
+          "delta": -11.2943,
+          "scaled": -11.2943,
+          "excess": -10.2943
         },
         {
-          "name": "band_clr_5",
-          "family": "spectral",
+          "name": "crest_factor_db",
+          "family": "dynamics",
           "unit": "dB",
-          "delta": 3.5863,
-          "scaled": 4.7817,
-          "excess": 3.7817
+          "delta": 9.1463,
+          "scaled": 9.1463,
+          "excess": 8.1463
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.471,
-          "scaled": 3.1401,
-          "excess": 2.1401
+          "delta": 1.0311,
+          "scaled": 6.8742,
+          "excess": 5.8742
         },
         {
-          "name": "attack_log2_ms",
-          "family": "transient",
-          "unit": "log2(ms)",
-          "delta": -0.4948,
-          "scaled": -1.4136,
-          "excess": -0.4136
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 3.4309,
+          "scaled": 4.5745,
+          "excess": 3.5745
         }
       ],
-      "action": "random.compressor +0.231",
+      "action": "random.compressor",
       "step_scale": 0.125,
       "oscillating": true,
       "verdict": "continue",
       "renders_used": 7,
-      "elapsed_s": 9.5317,
+      "elapsed_s": 9.5149,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -750,109 +758,110 @@
       "chain": {
         "ops": [
           {
-            "id": "bd096ba3",
-            "kind": "gain",
-            "gain_db": 0.9950692859782011
+            "id": "b8e9292e",
+            "kind": "eq",
+            "bands": [
+              {
+                "shape": "peak",
+                "freq_hz": 5656.85424949238,
+                "gain_db": 7.429600390998991,
+                "q": 2.0165894394179498
+              }
+            ]
           },
           {
-            "id": "28950194",
+            "id": "debb0845",
             "kind": "expander",
-            "threshold_db": -29.570281476258245,
-            "ratio": 3.4398107176008175,
+            "threshold_db": -28.934688377658937,
+            "ratio": 1.0495829065855873,
             "attack_ms": 5.0,
             "release_ms": 80.0
           },
           {
-            "id": "3e47a870",
-            "kind": "expander",
-            "threshold_db": -11.033089414416041,
-            "ratio": 2.6308749743962685,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "2495ec34",
-            "kind": "expander",
-            "threshold_db": -8.787807592840164,
-            "ratio": 1.0082155005104443,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "ea88b0b0",
-            "kind": "expander",
-            "threshold_db": -11.028958392821455,
-            "ratio": 1.526966861807677,
-            "attack_ms": 5.0,
-            "release_ms": 80.0
-          },
-          {
-            "id": "380a1365",
+            "id": "86de7748",
             "kind": "compressor",
-            "threshold_db": -39.03713118105426,
-            "ratio": 1.8699829354969477,
-            "attack_ms": 33.860596319987884,
-            "release_ms": 265.932014398215,
+            "threshold_db": -38.85809043961421,
+            "ratio": 6.107588125009609,
+            "attack_ms": 9.607125409525391,
+            "release_ms": 348.0079904929569,
             "makeup_db": 0.0
           },
           {
-            "id": "d69e7339",
+            "id": "a2da84cf",
+            "kind": "stereo_width",
+            "width": 1.5053656865944516,
+            "band": 4
+          },
+          {
+            "id": "ef70c949",
             "kind": "limiter",
             "ceiling_dbtp": -2.244597201461163,
+            "release_ms": 50.0
+          },
+          {
+            "id": "98aa6c1b",
+            "kind": "limiter",
+            "ceiling_dbtp": -1.477850023896816,
+            "release_ms": 50.0
+          },
+          {
+            "id": "71f1953a",
+            "kind": "limiter",
+            "ceiling_dbtp": -2.9923321995235854,
             "release_ms": 50.0
           }
         ]
       },
-      "chain_fingerprint": "1d569307f116fb583369b8c2f736c8b5",
-      "distance_score": 6.297449642927419,
-      "n_out_of_tolerance": 6,
+      "chain_fingerprint": "02074c629a6b9809345ac10dc39bcc33",
+      "distance_score": 12.076415828763343,
+      "n_out_of_tolerance": 14,
       "by_family": {
-        "loudness": 39.084903,
-        "dynamics": 0.0,
-        "spectral": 0.568692,
-        "stereo": 0.0,
-        "transient": 0.004277
+        "loudness": 137.23945,
+        "dynamics": 6.66268,
+        "spectral": 1.826599,
+        "stereo": 0.11109,
+        "transient": 0.0
       },
       "worst": [
         {
           "name": "lufs_integrated",
           "family": "loudness",
           "unit": "LUFS",
-          "delta": -10.1675,
-          "scaled": -20.3349,
-          "excess": -19.3349
+          "delta": -20.1271,
+          "scaled": -40.2542,
+          "excess": -39.2542
         },
         {
           "name": "true_peak_dbtp",
           "family": "loudness",
           "unit": "dBTP",
-          "delta": -10.756,
-          "scaled": -10.756,
-          "excess": -9.756
+          "delta": -11.2943,
+          "scaled": -11.2943,
+          "excess": -10.2943
         },
         {
-          "name": "band_clr_5",
-          "family": "spectral",
+          "name": "crest_factor_db",
+          "family": "dynamics",
           "unit": "dB",
-          "delta": 3.5863,
-          "scaled": 4.7817,
-          "excess": 3.7817
+          "delta": 9.1463,
+          "scaled": 9.1463,
+          "excess": 8.1463
         },
         {
           "name": "flatness_logit",
           "family": "spectral",
           "unit": "logit",
-          "delta": 0.471,
-          "scaled": 3.1401,
-          "excess": 2.1401
+          "delta": 1.0311,
+          "scaled": 6.8742,
+          "excess": 5.8742
         },
         {
-          "name": "attack_log2_ms",
-          "family": "transient",
-          "unit": "log2(ms)",
-          "delta": -0.4948,
-          "scaled": -1.4136,
-          "excess": -0.4136
+          "name": "band_clr_7",
+          "family": "spectral",
+          "unit": "dB",
+          "delta": 3.4309,
+          "scaled": 4.5745,
+          "excess": 3.5745
         }
       ],
       "action": "",
@@ -860,7 +869,7 @@
       "oscillating": true,
       "verdict": "abort",
       "renders_used": 7,
-      "elapsed_s": 9.5318,
+      "elapsed_s": 9.515,
       "input_tokens": 0,
       "output_tokens": 0,
       "cache_read_tokens": 0,
@@ -872,13 +881,13 @@
     }
   ],
   "n_renders": 7,
-  "wall_time_s": 9.5413,
+  "wall_time_s": 9.5248,
   "total_cost_usd": 0.0,
   "total_input_tokens": 0,
   "total_output_tokens": 0,
   "total_cache_read_tokens": 0,
-  "git_sha": "647727e",
-  "config_hash": "9a9ee3667fe018b0",
+  "git_sha": "3f5086f",
+  "config_hash": "27522dce54ebefe9",
   "package_versions": {
     "numpy": "2.5.3",
     "scipy": "1.18.1",

@@ -21,10 +21,10 @@ keeps any LLM judge out of the metric.
 The deliverable is the comparison. Seven controllers run the identical loop on
 six MUSDB18 tracks × nine degradations, paired and Wilcoxon-tested. The
 architecture with arithmetic in the model's seat beats a tuned proportional
-controller (p = 0.010), reaches 99.6% of a 250-render optimizer's ceiling in a
-median of **2 renders**, and costs $0. Put Haiku 4.5 in the same seat and it is
-the only thing that can turn *"more space, but keep the low end mono"* into
-constraints (94% of briefs), and the worst of the three at sitting still.
+controller (**p = 0.002**) in a median of **2 renders**, and costs $0. Put
+Haiku 4.5 in the same seat and it is the only thing that can turn *"more
+space, but keep the low end mono"* into constraints (94% of briefs), and the
+worst of the three at sitting still.
 Everything in this repository cost about $3.35 in API calls, and every call is a
 committed cassette, so all of it replays with no key.
 
@@ -80,16 +80,22 @@ that was removed; 1.000 is a complete repair, 0 is no progress.
 
 | system | recovery (median) | IQR | converged | oscillated | renders | cost |
 |---|---|---|---|---|---|---|
-| **`agent-scaffold`** (the architecture, arithmetic where the model goes) | **+0.991** | +0.912 to +1.000 | **67%** | **6%** | **2** | **$0** |
-| `heuristic` (proportional controller, one edit per render) | +0.959 | +0.858 to +1.000 | 67% | 11% | 3 | $0 |
-| `agent` (same architecture, Haiku 4.5 specialists) | +0.934 | +0.821 to +1.000 | 54% | 31% | 3 | $1.20 |
+| **`agent-scaffold`** (the architecture, arithmetic where the model goes) | **+0.991** | +0.912 to +1.000 | **67%** | **7%** | **2** | **$0** |
+| `heuristic` (proportional controller, one edit per render) | +0.951 | +0.858 to +0.994 | 67% | 11% | 3 | $0 |
 | `hillclimb` / `random` / `null` (floors) | ≤ +0.001 | | 0% | | | $0 |
 
-Scaffold against heuristic, paired: 27 wins, 15 losses, 12 ties, **p = 0.010**.
-Agent against heuristic: 19 / 22 / 13, p = 0.168, not significant at this n.
-A multi-start Powell optimizer given 250 renders a cell and seeded with every
-other system's answer sets the measured ceiling at +1.000; the scaffold's
-+0.996 on that condition is 99.6% of it in 2 renders.
+Scaffold against heuristic, paired: 29 wins, 14 losses, 11 ties, **p = 0.002**.
+
+The `agent` row is missing from that table on purpose. v1.1 corrected four
+defects in the metric and the controllers, so every arithmetic system above
+was re-run against the corrected measurement; the model-backed row could not
+be, because a cassette records the prompt and the prompt carries the measured
+numbers. Its v1 figures — +0.934 median, 54% converged, 31% oscillated, $1.20
+— describe the old metric and are archived in
+[`results/traces-v1-superseded/`](results/traces-v1-superseded) rather than
+mixed into a table they are no longer commensurable with. Re-recording it is
+the one outstanding item in [SCOPE.md](SCOPE.md) that costs money rather than
+compute.
 
 The comparison was run in four conditions, two corpora × two clip lengths, 54
 cells each, to check that the architecture's advantage is about the material
@@ -97,19 +103,22 @@ and not about the sample size or the analysis window:
 
 | corpus | clips | `agent-scaffold` | `heuristic` | gap | p |
 |---|---|---|---|---|---|
-| synthetic | 6.8 s | +1.000 | +0.994 | 0.006 | 0.230 |
-| synthetic | 20 s | +0.999 | +0.991 | 0.008 | **0.047** |
-| real music | 6.8 s | +0.996 | +0.962 | **0.034** | **0.028** |
-| **real music** | **20 s** | **+0.991** | **+0.959** | **0.032** | **0.010** |
+| synthetic | 6.8 s | +1.000 | +0.993 | 0.007 | 0.109 |
+| synthetic | 20 s | +1.000 | +0.994 | 0.006 | **0.045** |
+| real music | 6.8 s | +0.997 | +0.951 | **0.046** | **0.010** |
+| **real music** | **20 s** | **+0.991** | **+0.951** | **0.040** | **0.002** |
 
-The gap is five times larger on real music at both clip lengths; that, rather
-than significance, is what real music adds. The same controls cut down three
+The gap is roughly seven times larger on real music at both clip lengths;
+that, rather than significance, is what real music adds. The same controls cut down three
 claims earlier versions of this page made, including "the model is significantly
-worse", which holds at 6.8 s and not at 20 s. The model's real weakness is
+worse", which held at 6.8 s and not at 20 s. The model's real weakness is
 stability: change only the analysis window and its per-kind results move 18×
-further than the scaffold's. All of it, with the optimizer bound, the retractions
-and the caveats, is in [**docs/ANALYSIS.md**](docs/ANALYSIS.md); the generated
-tables are in [`results/`](results/RESULTS-musdb18-20s.md).
+further than the scaffold's. Those two findings are v1-metric measurements and
+stand until the model rows are re-recorded. The optimizer ceiling is being
+re-measured at 20 s, where the headline is, rather than at the 6.8 s it was
+run at in v1. All of it, with the bound, the retractions and the caveats, is
+in [**docs/ANALYSIS.md**](docs/ANALYSIS.md); the generated tables are in
+[`results/`](results/README.md).
 
 ## How it works
 
@@ -249,7 +258,13 @@ translations, two controllers:
 
 The design conclusion is a split, and it is measured rather than asserted: the
 model reads intent at 94%, and arithmetic closes the loop better than the model
-does, for free. Detail in [`results/BRIEFS.md`](results/BRIEFS.md).
+does, for free. Detail in [`results/BRIEFS.md`](results/BRIEFS.md). Both rows
+are v1-metric: the brief translations are recorded cassettes, so this table
+waits on the same re-record as the `agent` row above.
+
+Translation is the half least likely to move when it is re-run. It is scored
+on which regions a sentence names and in which direction, and neither of the
+two corrected features is one a brief asks for by name.
 
 ## What is built here, and what is used
 
@@ -282,6 +297,17 @@ recovery mismatches against results/traces-musdb18-20s: 0 of 54 matched traces
 
 The last line is an exit code, not a sentence: any cell that lands on a
 different recovery than the published trace fails the command.
+
+**That command does not run today, and the reason is the mechanism working.**
+A cassette is keyed on the request, the request carries the measured numbers,
+and v1.1 changed two of the measurements — so every model-backed key is a
+miss until the row is re-recorded, and replay mode turns a miss into a
+non-zero exit rather than a quiet zero-recovery row. The recordings and the
+v1 traces are kept at
+[`results/traces-v1-superseded/`](results/traces-v1-superseded); what they
+reproduce is the v1 metric. Cassette replay itself is unaffected and still
+asserted on every push: `test_every_committed_cassette_replays` plays each
+committed recording back against its own request.
 
 The cassettes are the API traffic verbatim, which makes the directory a readable
 record of every prompt the system has ever sent. A test asserts across every
