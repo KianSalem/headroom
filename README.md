@@ -348,6 +348,17 @@ from a smaller distribution, verifies the archive against the MD5 Zenodo
 publishes, decodes only the mixture stream out of each five-stream file, and
 deletes the archive afterwards. Peak disk is the archive plus one track.
 
+## Coming soon
+
+**A DAW plugin.** Everything on this page is a terminal, and that is the part
+the loop cares about least: processing is a declarative chain, and the chain is
+already the artifact the system builds, revises, diffs and exports. The plugin
+puts that where the mix already lives — the target, the 28 measured dimensions
+and the signed distance to each, and the chain the loop wrote, in the session,
+in front of the audio it was written for.
+
+Nothing in this section is built yet. Everything above it is.
+
 ## Reading the code
 
 | path | what is in it |
