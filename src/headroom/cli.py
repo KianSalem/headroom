@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING, Final
 import soundfile as sf
 from evals.runner import AGENT_SYSTEMS, FREE_SYSTEMS
 
-from headroom import __version__
+from headroom import __version__, conformance
 from headroom.agent.client import DEFAULT_MODEL
 from headroom.analysis.features import analyze
 from headroom.audio import AudioBuffer, AudioError, load, save
 from headroom.dsp.backends.pedalboard import render_chain
 from headroom.dsp.chain import Chain
-from headroom.target.distance import distance
+from headroom.target.distance import SCORED, distance
 from headroom.target.profile import PRESETS, TargetProfile
 
 if TYPE_CHECKING:
@@ -76,6 +76,30 @@ def _cmd_compare(args: argparse.Namespace) -> int:
         target = TargetProfile.from_features(analyze(load(args.reference)), label="reference")
     result = distance(current, target, norm=args.norm)
     sys.stdout.write(f"{target.describe()}\n{result.describe(args.top)}\n")
+    return 0
+
+
+def _cmd_vectors(args: argparse.Namespace) -> int:
+    result = conformance.dump(args.paths, implementation=args.implementation)
+    Path(args.out).write_text(result.model_dump_json(indent=1) + "\n")
+    sys.stdout.write(f"{len(result.files)} file(s), {len(SCORED)} dimensions each -> {args.out}\n")
+    return 0
+
+
+def _cmd_vectors_diff(args: argparse.Namespace) -> int:
+    a = conformance.VectorDump.model_validate_json(Path(args.a).read_text())
+    b = conformance.VectorDump.model_validate_json(Path(args.b).read_text())
+    report = conformance.diff(a, b)
+    sys.stdout.write(report.describe(args.top, args.max_tol) + "\n")
+    if not report.comparable:
+        sys.stdout.write("the two dumps do not cover the same audio\n")
+        return 1
+    if report.max_tol > args.max_tol:
+        sys.stdout.write(
+            f"{len(report.moved(args.max_tol))} dimension(s) drifted past "
+            f"{args.max_tol:g} tol; worst {report.max_tol:.4f}\n"
+        )
+        return 1
     return 0
 
 
@@ -555,6 +579,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_compare.add_argument("--norm", choices=("l1", "l2"), default="l2")
     p_compare.add_argument("--top", type=int, default=8)
     p_compare.set_defaults(func=_cmd_compare)
+
+    p_vec = sub.add_parser(
+        "vectors", help="dump the scored vector for every file, for conformance checking"
+    )
+    p_vec.add_argument("paths", nargs="+", help="audio files or directories to walk")
+    p_vec.add_argument("--out", required=True)
+    p_vec.add_argument(
+        "--implementation", default=None, help="what produced this dump; defaults to this build"
+    )
+    p_vec.set_defaults(func=_cmd_vectors)
+
+    p_vdiff = sub.add_parser(
+        "vectors-diff", help="per-dimension drift between two vector dumps, in tolerance units"
+    )
+    p_vdiff.add_argument("a")
+    p_vdiff.add_argument("b")
+    p_vdiff.add_argument(
+        "--max-tol",
+        type=float,
+        default=0.0,
+        dest="max_tol",
+        help="exit non-zero if any dimension drifts past this many tolerances",
+    )
+    p_vdiff.add_argument("--top", type=int, default=12)
+    p_vdiff.set_defaults(func=_cmd_vectors_diff)
 
     sub.add_parser("presets", help="list delivery targets").set_defaults(func=_cmd_presets)
 
